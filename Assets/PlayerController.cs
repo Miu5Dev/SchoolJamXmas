@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-[Header("Movement")]
+ [Header("Movement")]
     [SerializeField] private float walkSpeed = 6f;
     [SerializeField] private float runSpeed = 12f;
     [SerializeField] private float acceleration = 10f;
@@ -42,7 +42,6 @@ public class PlayerController : MonoBehaviour
         HandleJump();
         ApplyGravity();
         
-        // Apply final movement
         controller.Move((moveDirection + Vector3.up * verticalVelocity) * Time.deltaTime);
     }
     
@@ -50,7 +49,6 @@ public class PlayerController : MonoBehaviour
     {
         isGrounded = controller.isGrounded;
         
-        // Coyote time for forgiving jumps
         if (isGrounded)
             coyoteTimeCounter = coyoteTime;
         else
@@ -59,13 +57,11 @@ public class PlayerController : MonoBehaviour
     
     void HandleMovement()
     {
-        // Get input relative to camera
         float horizontal = Input.GetAxisRaw("Horizontal");
         float vertical = Input.GetAxisRaw("Vertical");
         
         Vector3 inputDir = new Vector3(horizontal, 0f, vertical).normalized;
         
-        // Calculate movement direction relative to camera
         Vector3 forward = cameraTransform.forward;
         Vector3 right = cameraTransform.right;
         forward.y = 0f;
@@ -75,28 +71,23 @@ public class PlayerController : MonoBehaviour
         
         Vector3 targetDirection = (forward * inputDir.z + right * inputDir.x);
         
-        // Determine target speed (hold shift to run)
         float targetSpeed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : walkSpeed;
         Vector3 targetVelocity = targetDirection * targetSpeed;
         
-        // Choose acceleration/deceleration based on ground state
         float currentAccel = isGrounded ? acceleration : airAcceleration;
         float currentDecel = isGrounded ? deceleration : airDeceleration;
         
-        // Smoothly interpolate to target velocity
         if (targetDirection.magnitude > 0.1f)
         {
             moveDirection = Vector3.MoveTowards(moveDirection, targetVelocity, 
                 currentAccel * Time.deltaTime);
             
-            // Rotate character to face movement direction
             Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 
                 rotationSpeed * Time.deltaTime);
         }
         else
         {
-            // Decelerate to stop
             moveDirection = Vector3.MoveTowards(moveDirection, Vector3.zero, 
                 currentDecel * Time.deltaTime);
         }
@@ -115,7 +106,7 @@ public class PlayerController : MonoBehaviour
     {
         if (isGrounded && verticalVelocity < 0f)
         {
-            verticalVelocity = -2f; // Keep grounded
+            verticalVelocity = -2f;
         }
         else
         {
