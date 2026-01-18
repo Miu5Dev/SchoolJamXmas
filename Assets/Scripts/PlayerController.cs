@@ -2,6 +2,14 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    //Dialog Dependencies START
+    [SerializeField] private DialogueUI dialogueUI;
+
+    public DialogueUI DialogueUI => dialogueUI;
+    public Interactable interactable { get; set; }
+    //Dialog Dependencies END
+    
+    
  [Header("Movement")]
     [SerializeField] private float minSpeed = 4f;
     [SerializeField] private float maxSpeed = 12f;
@@ -153,6 +161,17 @@ public class PlayerController : MonoBehaviour
     
     void Update()
     {
+        //Dialog Dependencies START
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (interactable != null)
+            {
+                interactable.Interact(this);
+            }
+        }
+
+        if (dialogueUI.IsOpen) return;
+        //Dialog Dependencies END
         wasGroundedLastFrame = isGrounded;
         
         HandleBonkStun();
