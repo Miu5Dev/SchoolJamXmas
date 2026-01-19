@@ -32,9 +32,13 @@ public class DialogueActivator : MonoBehaviour, Interactable
 
     public void Interact(PlayerController player)
     {
-        if (TryGetComponent(out DialogueResponseEvents responseEvents) && responseEvents.DialogueObject == dialogueObject == this)
+        foreach (DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>())
         {
-            player.DialogueUI.AddResponseEvents(responseEvents.Events);
+            if (responseEvents.DialogueObject == dialogueObject)
+            {
+                player.DialogueUI.AddResponseEvents(responseEvents.Events);
+                break;
+            }
         }
         
         player.DialogueUI.showDialogue(dialogueObject);

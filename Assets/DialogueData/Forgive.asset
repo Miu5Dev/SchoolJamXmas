@@ -10,12 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
-  m_Name: Bad Ending
+  m_Name: Forgive
   m_EditorClassIdentifier: 
   dialogue:
-  - 'Im only 9 years old ):'
-  responses:
-  - responseText: Im sorry
-    dialogueObject: {fileID: 11400000, guid: bec1bd70ca9df8543a9f29d51c92aec4, type: 2}
-  - responseText: leave
-    dialogueObject: {fileID: 0}
+  - 'NEVER! '
+  - im gonna remember it for the rest of my life!
+  responses: []
