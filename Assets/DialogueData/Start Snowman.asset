@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
-  m_Name: New Dialogue Object
+  m_Name: Start Snowman
   m_EditorClassIdentifier: 
   dialogue:
 <<<<<<< Updated upstream
   - 'HELP. HELP. HELP. HELP.
 
     PLEASE HELP ME!!!!!!!!'
-  - hey, how are you doing?
+  - Dont you dare touch me!
   responses:
-  - responseText: Yes
+  - responseText: touch him
     dialogueObject: {fileID: 11400000, guid: 022c61da2de04ea46a7b7c03ff7d8edb, type: 2}
-  - responseText: No
+  - responseText: dont touch him
     dialogueObject: {fileID: 11400000, guid: c95adbc225cc3d0498e7011caa82510c, type: 2}
 =======
   - test test

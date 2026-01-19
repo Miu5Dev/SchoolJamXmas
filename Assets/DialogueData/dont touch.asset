@@ -10,7 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
-  m_Name: No
+  m_Name: dont touch
   m_EditorClassIdentifier: 
   dialogue:
-  - You said no.
+  - You decided to leave him alone
+  responses: []
