@@ -4,9 +4,7 @@ using UnityEngine.InputSystem;
 
 public class InputSystem : MonoBehaviour
 {
-
     private MyInputs inputs;
-
 
     private void Awake()
     {
@@ -22,6 +20,8 @@ public class InputSystem : MonoBehaviour
         inputs.Player.Crouch.canceled += onCrouchInput;
         inputs.Player.Sprint.performed += onRunInput;
         inputs.Player.Sprint.canceled += onRunInput;
+        inputs.Player.Look.performed += onLookInput;
+        inputs.Player.Look.canceled += onLookInput;
         
         Debug.Log("Input System Awake");
     }
@@ -29,6 +29,8 @@ public class InputSystem : MonoBehaviour
     void OnEnable()
     {
         inputs.Player.Enable();
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void OnDisable()
@@ -38,7 +40,6 @@ public class InputSystem : MonoBehaviour
     
     private void onMoveInput(InputAction.CallbackContext context)
     {
-        
         bool refpress = context.performed;
         
         EventBus.Raise(new onMoveInputEvent()
@@ -48,11 +49,20 @@ public class InputSystem : MonoBehaviour
         });
     }
 
-    private void onInteractInput(InputAction.CallbackContext context)
+    private void onLookInput(InputAction.CallbackContext context)
     {
-        
         bool refpress = context.performed;
         
+        EventBus.Raise(new onLookInputEvent()
+        {
+            pressed = refpress,
+            Delta = context.ReadValue<Vector2>()
+        });
+    }
+
+    private void onInteractInput(InputAction.CallbackContext context)
+    {
+        bool refpress = context.performed;
         
         EventBus.Raise(new onInteractInputEvent()
         {
@@ -63,7 +73,6 @@ public class InputSystem : MonoBehaviour
     private void onRunInput(InputAction.CallbackContext context)
     {
         bool refpress = context.performed;
-
         
         EventBus.Raise(new onRunInputEvent()
         {
@@ -81,7 +90,6 @@ public class InputSystem : MonoBehaviour
         });
     }
 
-    
     private void onJumpInput(InputAction.CallbackContext context)
     {
         bool refpress = context.performed;
