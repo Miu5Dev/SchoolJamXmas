@@ -164,7 +164,7 @@ public class PlayerController : MonoBehaviour
         //Dialog Dependencies START
         if (Input.GetKeyDown(KeyCode.E))
         {
-            if (interactable != null)
+            if (interactable != null && !dialogueUI.IsOpen)
             {
                 interactable.Interact(this);
             }
