@@ -6,6 +6,7 @@ public class DoorAnimationTrigger : MonoBehaviour
     public Animator doorAnimator;
     private bool isPlayerInFrontHitbox = false;
     private bool isPlayerInBackHitbox = false;
+    public GameObject interactionIcon;
 
     void Update()
     {
@@ -37,6 +38,7 @@ public class DoorAnimationTrigger : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             isPlayerInFrontHitbox = true;
+            interactionIcon.SetActive(true);
         }
     }
 
@@ -45,11 +47,13 @@ public class DoorAnimationTrigger : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             isPlayerInFrontHitbox = false;
+            interactionIcon.SetActive(false);
         }
     }
 
     public void SetBackHitbox(bool state)
     {
         isPlayerInBackHitbox = state;
+        interactionIcon.SetActive(state);
     }
 }
