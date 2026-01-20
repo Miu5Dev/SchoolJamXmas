@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: New Dialogue Object
   m_EditorClassIdentifier: 
   dialogue:
+<<<<<<< Updated upstream
   - 'HELP. HELP. HELP. HELP.
 
     PLEASE HELP ME!!!!!!!!'
@@ -22,3 +23,7 @@ MonoBehaviour:
     dialogueObject: {fileID: 11400000, guid: 022c61da2de04ea46a7b7c03ff7d8edb, type: 2}
   - responseText: No
     dialogueObject: {fileID: 11400000, guid: c95adbc225cc3d0498e7011caa82510c, type: 2}
+=======
+  - test test
+  responses: []
+>>>>>>> Stashed changes
