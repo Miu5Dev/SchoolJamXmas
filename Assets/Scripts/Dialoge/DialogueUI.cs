@@ -7,6 +7,7 @@ public class DialogueUI : MonoBehaviour
     [SerializeField] private GameObject dialogueBox;
     [SerializeField] private TMP_Text textLabel;
     
+    
     public bool IsOpen { get; private set; }
     
     private ResponseHandler responseHandler;
