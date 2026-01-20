@@ -13,10 +13,10 @@ public class MovementSystem : MonoBehaviour
     void OnEnable()
     {
         // Subscribe to movement events
-        EventBus.Subscribe<onMoveInputEvent>(onPlayerMove);
-        EventBus.Subscribe<onJumpInputEvent>(onPlayerJump);
-        EventBus.Subscribe<onCrouchInputEvent>(onPlayerCrouch);
-        EventBus.Subscribe<onRunInputEvent>(onPlayerRun);
+        EventBus.Subscribe<onMoveInputEvent>(OnMoveInput);
+        EventBus.Subscribe<onJumpInputEvent>(OnJumpInput);
+        EventBus.Subscribe<onCrouchInputEvent>(OnCrouchInput);
+        EventBus.Subscribe<onRunInputEvent>(OnRunInput);
         
         Debug.Log("STARTED");
         
@@ -25,29 +25,29 @@ public class MovementSystem : MonoBehaviour
     void OnDisable()
     {
         // Always unsubscribe to prevent memory leaks
-        EventBus.Unsubscribe<onMoveInputEvent>(onPlayerMove);
-        EventBus.Unsubscribe<onJumpInputEvent>(onPlayerJump);
-        EventBus.Unsubscribe<onCrouchInputEvent>(onPlayerCrouch);
-        EventBus.Unsubscribe<onRunInputEvent>(onPlayerRun);
+        EventBus.Unsubscribe<onMoveInputEvent>(OnMoveInput);
+        EventBus.Unsubscribe<onJumpInputEvent>(OnJumpInput);
+        EventBus.Unsubscribe<onCrouchInputEvent>(OnCrouchInput);
+        EventBus.Unsubscribe<onRunInputEvent>(OnRunInput);
     }
 
-    private void onPlayerMove(onMoveInputEvent ev)
+    private void OnMoveInput(onMoveInputEvent ev)
     {
         InputDirection = ev.Direction;
         Debug.Log(InputDirection);
     }
 
-    private void onPlayerRun(onRunInputEvent ev)
+    private void OnRunInput(onRunInputEvent ev)
     {
         running = ev.pressed;
     }
 
-    private void onPlayerJump(onJumpInputEvent ev)
+    private void OnJumpInput(onJumpInputEvent ev)
     {
         jumping = ev.pressed;
     }
 
-    private void onPlayerCrouch(onCrouchInputEvent ev)
+    private void OnCrouchInput(onCrouchInputEvent ev)
     {
         crouching = ev.pressed;
     }
