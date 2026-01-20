@@ -170,7 +170,7 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        if (dialogueUI.IsOpen) return;
+        if (dialogueUI != null && dialogueUI.IsOpen) return;
         //Dialog Dependencies END
         wasGroundedLastFrame = isGrounded;
         
