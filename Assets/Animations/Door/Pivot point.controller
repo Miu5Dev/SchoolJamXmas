@@ -46,7 +46,7 @@ AnimatorStateTransition:
     m_ConditionEvent: IsToggled
     m_EventTreshold: 0
   - m_ConditionMode: 2
-    m_ConditionEvent: IsToggled
+    m_ConditionEvent: FrontSide
     m_EventTreshold: 0
   m_DstStateMachine: {fileID: 0}
   m_DstState: {fileID: 2302506415974503989}
@@ -403,6 +403,9 @@ AnimatorStateTransition:
   m_Conditions:
   - m_ConditionMode: 1
     m_ConditionEvent: IsToggled
+    m_EventTreshold: 0
+  - m_ConditionMode: 1
+    m_ConditionEvent: FrontSide
     m_EventTreshold: 0
   m_DstStateMachine: {fileID: 0}
   m_DstState: {fileID: -2326994379464649829}
