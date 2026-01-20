@@ -1411,7 +1411,7 @@ GameObject:
   - component: {fileID: 1766794622}
   - component: {fileID: 1766794620}
   - component: {fileID: 1766794625}
-  m_Layer: 6
+  m_Layer: 7
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1443,7 +1443,7 @@ MonoBehaviour:
   groundStickSpeedReference: 40
   groundLayer:
     serializedVersion: 2
-    m_Bits: 63
+    m_Bits: 127
   maxWalkableAngle: 45
   slideAccelerationMin: 10
   slideAccelerationMax: 30
