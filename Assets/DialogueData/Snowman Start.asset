@@ -10,20 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
-  m_Name: Start Snowman
+  m_Name: Snowman Start
   m_EditorClassIdentifier: 
   dialogue:
-<<<<<<< Updated upstream
-  - 'HELP. HELP. HELP. HELP.
-
-    PLEASE HELP ME!!!!!!!!'
-  - Dont you dare touch me!
+  - Hey How are you doing im your friendly neighborhood snowman
   responses:
-  - responseText: touch him
+  - responseText: Touch him
     dialogueObject: {fileID: 11400000, guid: 022c61da2de04ea46a7b7c03ff7d8edb, type: 2}
-  - responseText: dont touch him
+  - responseText: Dont touch him
     dialogueObject: {fileID: 11400000, guid: c95adbc225cc3d0498e7011caa82510c, type: 2}
-=======
-  - test test
-  responses: []
->>>>>>> Stashed changes
