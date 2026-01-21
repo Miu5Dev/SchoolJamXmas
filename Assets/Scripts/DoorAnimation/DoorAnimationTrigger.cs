@@ -10,15 +10,15 @@ public class DoorAnimationTrigger : MonoBehaviour
 
     private void OnEnable()
     {
-        EventBus.Subscribe<onInteractInputEvent>(doStuff);
+        EventBus.Subscribe<OnActionInputEvent>(doStuff);
     }
     
     private void OnDisable()
     {
-        EventBus.Unsubscribe<onInteractInputEvent>(doStuff);
+        EventBus.Unsubscribe<OnActionInputEvent>(doStuff);
     }
     
-    private void doStuff(onInteractInputEvent ev)
+    private void doStuff(OnActionInputEvent ev)
     {
         
         Debug.Log("Interacting with door");
