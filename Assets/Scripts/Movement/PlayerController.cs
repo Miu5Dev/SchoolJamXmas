@@ -1217,12 +1217,8 @@ public class PlayerController : MonoBehaviour
                 airVelocity += airControlForce * Time.deltaTime;
                 
                 // Very slow decay when controlling - maintain momentum
-                // Only during coyote time, don't decay at all (Fix #4E)
-                if (coyoteTimer > 0f)
-                {
-                    // No decay during coyote time
-                }
-                else
+                // Don't decay during coyote time (Fix #4E) for better feel
+                if (coyoteTimer <= 0f)
                 {
                     float decayRate = airMomentumDecay * airMomentumDecayControlled * Time.deltaTime;
                     airVelocity = Vector3.MoveTowards(airVelocity, Vector3.zero, decayRate);
