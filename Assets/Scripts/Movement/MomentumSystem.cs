@@ -12,6 +12,9 @@ public class MomentumSystem : MonoBehaviour
     [SerializeField] private float sideDecay = 5f;
     [SerializeField] private float alignedDecay = 2f;
     [SerializeField] private float maxMomentum = 30f;
+    [SerializeField] private float groundNoInputDecayMultiplier = 2.5f;
+    [SerializeField] private float airNoInputDecayMultiplier = 0.3f;
+    [SerializeField] private float airWithInputDecayMultiplier = 0.4f;
     
     [Header("Momentum Fighting")]
     [SerializeField] private float fightStrength = 0.7f;
@@ -161,11 +164,11 @@ public class MomentumSystem : MonoBehaviour
             // No input - faster decay on ground
             if (isGrounded)
             {
-                decayRate = baseDecay * 2.5f; // Much faster decay on ground when no input
+                decayRate = baseDecay * groundNoInputDecayMultiplier;
             }
             else
             {
-                decayRate = baseDecay * 0.3f; // Slower decay in air when no input
+                decayRate = baseDecay * airNoInputDecayMultiplier;
             }
             fightTimer = 0f;
             isFighting = false;
@@ -174,7 +177,7 @@ public class MomentumSystem : MonoBehaviour
         // Apply grounded modifier (in addition to above changes)
         if (!isGrounded && inputDirection.magnitude > 0.1f)
         {
-            decayRate *= 0.4f; // Air momentum decays slower when controlling
+            decayRate *= airWithInputDecayMultiplier;
         }
         
         // Apply decay

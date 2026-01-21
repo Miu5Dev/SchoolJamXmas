@@ -41,6 +41,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float longJumpHorizontalBoost = 15f;
     [SerializeField] private float backflipForce = 14f;
     [SerializeField] private float backflipHorizontalForce = 3f;
+    [SerializeField] private float backflipMinSpeedForQuickTurn = 3f;
     [SerializeField] private float groundPoundJumpForce = 18f;
     [SerializeField] private float slopeJumpMultiplier = 1.2f;
     [SerializeField] private float jumpCutMultiplier = 0.5f;
@@ -61,6 +62,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float crouchSlideBoost = 8f;
     [SerializeField] private float crouchSlideMinSpeed = 4f;
     [SerializeField] private float crouchSlideFriction = 5f;
+    [SerializeField] private float crouchSlideBackwardsFrictionMultiplier = 2.5f;
     [SerializeField] private float crouchSlideMaxDuration = 1.5f;
     
     [Header("Ground Pound Settings")]
@@ -581,7 +583,7 @@ public class PlayerController : MonoBehaviour
             float alignment = Vector3.Dot(inputDir.normalized, crouchSlideDirection.normalized);
             if (alignment < -0.3f) // Moving opposite to slide direction
             {
-                backwardsMultiplier = 2.5f; // Much faster decay when trying to go back
+                backwardsMultiplier = crouchSlideBackwardsFrictionMultiplier;
             }
         }
         
@@ -602,8 +604,8 @@ public class PlayerController : MonoBehaviour
         
         moveDirection = crouchSlideDirection;
         
-        // End crouch slide when speed reaches crouch walk speed
-        if (currentSpeed <= crouchSpeed)
+        // End crouch slide when speed drops below crouch walk speed
+        if (currentSpeed < crouchSpeed)
         {
             EndCrouchSlide(CrouchSlideEndReason.SpeedTooLow);
             currentSpeed = crouchSpeed; // Transition to crouch walk
@@ -713,7 +715,7 @@ public class PlayerController : MonoBehaviour
             PerformJump(JumpType.Backflip, backflipForce, -transform.forward * backflipHorizontalForce);
             return;
         }
-        else if (didQuickTurn && currentSpeed > 3f)
+        else if (didQuickTurn && currentSpeed > backflipMinSpeedForQuickTurn)
         {
             // Backflip from quick direction change while moving
             PerformJump(JumpType.Backflip, backflipForce, -transform.forward * backflipHorizontalForce);
