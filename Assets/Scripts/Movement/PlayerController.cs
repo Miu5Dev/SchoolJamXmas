@@ -15,6 +15,7 @@ public class PlayerController : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] private float minSpeed = 2f;               // Starting speed
     [SerializeField] private float maxSpeed = 12f;              // Maximum speed
+    [SerializeField] private float maxCombinedSpeed = 25f;      // Max combined speed (momentum + speed) to prevent glitches
     [SerializeField] private float crouchSpeed = 3f;
     [SerializeField] private float accelerationTime = 2f;       // Time to reach max speed
     [SerializeField] private float deceleration = 40f;
@@ -48,6 +49,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float tripleJumpWindow = 1.0f;     // INCREASED: More time for multi-jumps
     [SerializeField] private float minSpeedForMultiJump = 2f;   // Low requirement
     [SerializeField] private float jumpSpeedBonus = 1.5f;       // Each jump adds speed
+    [SerializeField] private float multiJumpDirectionTolerance = 0.7f;  // Dot product threshold for multi-jump direction (0.7 = ~45 degrees)
     
     [Header("Crouch Settings")]
     [SerializeField] private float normalHeight = 2f;
@@ -168,6 +170,7 @@ public class PlayerController : MonoBehaviour
     // Movement data
     private Vector3 moveDirection;
     private Vector3 jumpMomentum;
+    private Vector3 lastJumpDirection;
     private Vector3 crouchSlideDirection;
     private Vector3 ledgePosition;
     private Vector3 ledgeNormal;
@@ -568,21 +571,42 @@ public class PlayerController : MonoBehaviour
     
     private void HandleCrouchSlideMovement(Vector3 inputDir, GroundCheckResult groundResult)
     {
-        // Apply friction
-        currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, crouchSlideFriction * Time.deltaTime);
+        // Crouch slide should strongly reduce momentum until reaching crouch speed
+        float baseFriction = crouchSlideFriction * 2f; // Increased friction
         
-        // Allow slight steering
+        // Check if player is trying to go backwards (faster decay)
+        float backwardsMultiplier = 1f;
         if (inputDir.magnitude > 0.1f)
         {
-            crouchSlideDirection = Vector3.Lerp(crouchSlideDirection, inputDir, Time.deltaTime * 2f).normalized;
+            float alignment = Vector3.Dot(inputDir.normalized, crouchSlideDirection.normalized);
+            if (alignment < -0.3f) // Moving opposite to slide direction
+            {
+                backwardsMultiplier = 2.5f; // Much faster decay when trying to go back
+            }
+        }
+        
+        // Apply friction with possible backwards multiplier
+        currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, baseFriction * backwardsMultiplier * Time.deltaTime);
+        
+        // Don't turn the player during crouch slide
+        // Allow slight lateral movement but maintain slide direction
+        if (inputDir.magnitude > 0.1f)
+        {
+            // Only allow subtle lateral adjustments, not full turns
+            Vector3 lateralDir = inputDir - Vector3.Project(inputDir, crouchSlideDirection);
+            if (lateralDir.magnitude > 0.1f)
+            {
+                crouchSlideDirection = Vector3.Lerp(crouchSlideDirection, crouchSlideDirection + lateralDir * 0.15f, Time.deltaTime * 1.5f).normalized;
+            }
         }
         
         moveDirection = crouchSlideDirection;
         
-        // End crouch slide conditions
-        if (currentSpeed < crouchSlideMinSpeed * 0.5f)
+        // End crouch slide when speed reaches crouch walk speed
+        if (currentSpeed <= crouchSpeed)
         {
             EndCrouchSlide(CrouchSlideEndReason.SpeedTooLow);
+            currentSpeed = crouchSpeed; // Transition to crouch walk
         }
         else if (crouchSlideTimer >= crouchSlideMaxDuration)
         {
@@ -710,13 +734,21 @@ public class PlayerController : MonoBehaviour
         bool hasEnoughSpeed = horizontalSpeed >= minSpeedForMultiJump || currentSpeed >= minSpeedForMultiJump;
         bool inTimeWindow = Time.time - lastJumpTime < tripleJumpWindow;
         
-        if (jumpCount == 1 && hasEnoughSpeed && inTimeWindow)
+        // Check if player is maintaining direction for multi-jump (allow ~45 degree variation)
+        bool isSameDirection = true;
+        if (lastJumpDirection.magnitude > 0.1f && moveDirection.magnitude > 0.1f)
+        {
+            float directionAlignment = Vector3.Dot(lastJumpDirection.normalized, moveDirection.normalized);
+            isSameDirection = directionAlignment > multiJumpDirectionTolerance;
+        }
+        
+        if (jumpCount == 1 && hasEnoughSpeed && inTimeWindow && isSameDirection)
         {
             PerformJump(JumpType.Double, doubleJumpForce, moveDirection * (currentSpeed + jumpSpeedBonus));
             return;
         }
         
-        if (jumpCount == 2 && hasEnoughSpeed && inTimeWindow)
+        if (jumpCount == 2 && hasEnoughSpeed && inTimeWindow && isSameDirection)
         {
             PerformJump(JumpType.Triple, tripleJumpForce, moveDirection * (currentSpeed + jumpSpeedBonus * 2f));
             return;
@@ -735,6 +767,13 @@ public class PlayerController : MonoBehaviour
         airTime = 0f;
         
         verticalVelocity = force;
+        
+        // Track jump direction for multi-jump validation
+        Vector3 horizontalDirection = new Vector3(horizontalMomentum.x, 0f, horizontalMomentum.z);
+        if (horizontalDirection.magnitude > 0.1f)
+        {
+            lastJumpDirection = horizontalDirection.normalized;
+        }
         
         // FIX #4B: Consider momentum system when calculating jump momentum for smoother bunny-hop chains
         Vector3 systemMomentum = momentumSystem.CurrentMomentum;
@@ -965,12 +1004,15 @@ public class PlayerController : MonoBehaviour
             
             if (Physics.Raycast(ledgeCheckOrigin, Vector3.down, out RaycastHit ledgeHit, ledgeGrabHeight + 0.2f, ledgeLayer))
             {
+                // Smooth position update to prevent vibration
                 Vector3 hangPosition = ledgeHit.point + wallHit.normal * (controller.radius + 0.05f);
                 hangPosition.y = ledgeHit.point.y - currentHeight + ledgeGrabHeight;
-                transform.position = hangPosition;
+                
+                // Lerp position for smoother movement along ledge
+                transform.position = Vector3.Lerp(transform.position, hangPosition, Time.deltaTime * 15f);
                 
                 ledgeNormal = wallHit.normal;
-                transform.rotation = Quaternion.LookRotation(-ledgeNormal);
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(-ledgeNormal), Time.deltaTime * 12f);
                 ledgePosition = ledgeHit.point;
                 
                 EventBus.Raise(new OnPlayerLedgeMoveEvent
@@ -1268,9 +1310,11 @@ public class PlayerController : MonoBehaviour
         
         // FIX #2: Edge detection and handling
         // Detect if stuck on edge: side collision + not grounded + falling
+        // DISABLE when attempting ledge grab to avoid conflict
         CollisionFlags collisionFlags = controller.Move(velocity * Time.deltaTime);
         bool hasSideCollision = (collisionFlags & CollisionFlags.Sides) != 0;
-        bool isStuckOnEdge = hasSideCollision && !groundResult.isGrounded && verticalVelocity < edgeStuckVelocityThreshold;
+        bool isAttemptingLedgeGrab = !groundResult.isGrounded && verticalVelocity < 0f && hasSideCollision && !isGrabbingLedge;
+        bool isStuckOnEdge = hasSideCollision && !groundResult.isGrounded && verticalVelocity < edgeStuckVelocityThreshold && !isAttemptingLedgeGrab;
         
         if (isStuckOnEdge)
         {
@@ -1304,7 +1348,17 @@ public class PlayerController : MonoBehaviour
             }
         }
         
+        // Apply speed cap to prevent glitches (momentum + speed combined)
         float horizontalSpeed = new Vector3(velocity.x, 0, velocity.z).magnitude;
+        if (horizontalSpeed > maxCombinedSpeed)
+        {
+            Vector3 horizontalVelocity = new Vector3(velocity.x, 0, velocity.z);
+            horizontalVelocity = horizontalVelocity.normalized * maxCombinedSpeed;
+            velocity.x = horizontalVelocity.x;
+            velocity.z = horizontalVelocity.z;
+            horizontalSpeed = maxCombinedSpeed;
+        }
+        
         EventBus.Raise(new OnPlayerSpeedEvent
         {
             Player = gameObject,

@@ -158,14 +158,23 @@ public class MomentumSystem : MonoBehaviour
         }
         else
         {
+            // No input - faster decay on ground
+            if (isGrounded)
+            {
+                decayRate = baseDecay * 2.5f; // Much faster decay on ground when no input
+            }
+            else
+            {
+                decayRate = baseDecay * 0.3f; // Slower decay in air when no input
+            }
             fightTimer = 0f;
             isFighting = false;
         }
         
-        // Apply grounded modifier
-        if (!isGrounded)
+        // Apply grounded modifier (in addition to above changes)
+        if (!isGrounded && inputDirection.magnitude > 0.1f)
         {
-            decayRate *= 0.5f;
+            decayRate *= 0.4f; // Air momentum decays slower when controlling
         }
         
         // Apply decay
