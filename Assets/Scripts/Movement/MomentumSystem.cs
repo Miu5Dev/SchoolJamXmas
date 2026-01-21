@@ -40,6 +40,7 @@ public class MomentumSystem : MonoBehaviour
     private Vector3 previousInputDirection;
     private float fightTimer;
     private bool isFighting;
+    private float lastBrakingEventTime;
     
     public Vector3 CurrentMomentum => currentMomentum;
     public float MomentumMagnitude => momentumMagnitude;
@@ -139,13 +140,17 @@ public class MomentumSystem : MonoBehaviour
                 Vector3 fightDirection = -currentMomentum.normalized;
                 currentMomentum += fightDirection * fightForce * Time.deltaTime;
                 
-                // Raise braking event for animations/sounds
-                EventBus.Raise(new OnPlayerBrakingEvent
+                // Raise braking event for animations/sounds (throttled to avoid spam)
+                if (Time.time - lastBrakingEventTime > 0.1f)
                 {
-                    Player = gameObject,
-                    BrakingStrength = fightProgress,
-                    MomentumDirection = currentMomentum.normalized
-                });
+                    EventBus.Raise(new OnPlayerBrakingEvent
+                    {
+                        Player = gameObject,
+                        BrakingStrength = fightProgress,
+                        MomentumDirection = currentMomentum.normalized
+                    });
+                    lastBrakingEventTime = Time.time;
+                }
             }
             else if (alignment < 0.3f)
             {
