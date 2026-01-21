@@ -8,20 +8,31 @@ public class DoorAnimationTrigger : MonoBehaviour
     private bool isPlayerInBackHitbox = false;
     public GameObject interactionIcon;
 
-    void Update()
+    private void OnEnable()
     {
-        if (Input.GetKeyDown(KeyCode.E))
+        EventBus.Subscribe<onInteractInputEvent>(doStuff);
+    }
+    
+    private void OnDisable()
+    {
+        EventBus.Unsubscribe<onInteractInputEvent>(doStuff);
+    }
+    
+    private void doStuff(onInteractInputEvent ev)
+    {
+        
+        Debug.Log("Interacting with door");
+        
+        if (isPlayerInFrontHitbox)
         {
-            if (isPlayerInFrontHitbox)
-            {
-                StartCoroutine(TriggerDoor(true));
-            }
-            else if (isPlayerInBackHitbox)
-            {
-                StartCoroutine(TriggerDoor(false));
-            }
+            StartCoroutine(TriggerDoor(true));
+        }
+        else if (isPlayerInBackHitbox)
+        {
+            StartCoroutine(TriggerDoor(false));
         }
     }
+        
 
     IEnumerator TriggerDoor(bool isFrontSide)
     {
