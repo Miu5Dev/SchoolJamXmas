@@ -13,10 +13,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform cameraTransform;
     
     [Header("Movement Settings")]
-    [SerializeField] private float walkSpeed = 6f;
-    [SerializeField] private float maxSpeed = 12f;
+    [SerializeField] private float minSpeed = 2f;               // Starting speed
+    [SerializeField] private float maxSpeed = 12f;              // Maximum speed
     [SerializeField] private float crouchSpeed = 3f;
-    [SerializeField] private float acceleration = 8f;           // Changed: Now it's gradual acceleration
+    [SerializeField] private float accelerationTime = 2f;       // Time to reach max speed
     [SerializeField] private float deceleration = 40f;
     [SerializeField] private float turnSpeed = 720f;
     
@@ -42,18 +42,19 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpCutMultiplier = 0.5f;
     [SerializeField] private float coyoteTime = 0.15f;
     [SerializeField] private float jumpBufferTime = 0.1f;
-    [SerializeField] private float tripleJumpWindow = 0.5f;
-    [SerializeField] private float minSpeedForMultiJump = 4f;   // Reduced: No need to run for multi-jump
-    [SerializeField] private float jumpSpeedBonus = 1.5f;       // Each jump adds some speed
+    [SerializeField] private float tripleJumpWindow = 1.0f;     // INCREASED: More time for multi-jumps
+    [SerializeField] private float minSpeedForMultiJump = 2f;   // Low requirement
+    [SerializeField] private float jumpSpeedBonus = 1.5f;       // Each jump adds speed
     
     [Header("Crouch Settings")]
     [SerializeField] private float normalHeight = 2f;
     [SerializeField] private float crouchHeight = 1f;
     [SerializeField] private float crouchTransitionSpeed = 10f;
+    [SerializeField] private float colliderCenterY = 0f;        // FIXED: Configurable center Y
     
     [Header("Crouch Slide Settings")]
     [SerializeField] private float crouchSlideBoost = 8f;
-    [SerializeField] private float crouchSlideMinSpeed = 4f;    // Minimum speed to start crouch slide
+    [SerializeField] private float crouchSlideMinSpeed = 4f;
     [SerializeField] private float crouchSlideFriction = 5f;
     [SerializeField] private float crouchSlideMaxDuration = 1.5f;
     
@@ -70,8 +71,6 @@ public class PlayerController : MonoBehaviour
     [Header("Slope Slide Settings")]
     [SerializeField] private float slideAccelerationMin = 3f;
     [SerializeField] private float slideAccelerationMax = 12f;
-    [SerializeField] private float slideActivationDelay = 0.4f;
-    [SerializeField] private float slideMomentumDecay = 5f;
     
     [Header("Ledge Grab Settings")]
     [SerializeField] private float ledgeGrabDistance = 0.6f;
@@ -85,15 +84,24 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool alignToSlope = true;
     [SerializeField] private float slopeAlignmentSpeed = 10f;
     
+    [Header("Debug Gizmos")]
+    [SerializeField] private bool showMovementGizmos = true;
+    [SerializeField] private bool showJumpGizmos = true;
+    [SerializeField] private bool showStateGizmos = true;
+    [SerializeField] private bool showColliderGizmos = true;
+    [SerializeField] private bool showLedgeGizmos = true;
+    
     [Header("Current State (Debug)")]
     [SerializeField] private PlayerState currentState = PlayerState.Idle;
     [SerializeField] private Vector2 inputDirection;
     [SerializeField] private float currentSpeed;
+    [SerializeField] private float targetSpeed;
+    [SerializeField] private float moveTime;                    // Time spent moving (for acceleration)
     [SerializeField] private float verticalVelocity;
     [SerializeField] private int jumpCount;
+    [SerializeField] private float timeSinceLastJump;
     [SerializeField] private bool isJumpHeld;
     [SerializeField] private bool isCrouchHeld;
-    [SerializeField] private bool isAccelerateHeld;
     
     // Components
     private CharacterController controller;
@@ -166,7 +174,6 @@ public class PlayerController : MonoBehaviour
         EventBus.Subscribe<onMoveInputEvent>(OnMoveInput);
         EventBus.Subscribe<onJumpInputEvent>(OnJumpInput);
         EventBus.Subscribe<onCrouchInputEvent>(OnCrouchInput);
-        EventBus.Subscribe<onRunInputEvent>(OnAccelerateInput);
     }
     
     private void OnDisable()
@@ -174,7 +181,6 @@ public class PlayerController : MonoBehaviour
         EventBus.Unsubscribe<onMoveInputEvent>(OnMoveInput);
         EventBus.Unsubscribe<onJumpInputEvent>(OnJumpInput);
         EventBus.Unsubscribe<onCrouchInputEvent>(OnCrouchInput);
-        EventBus.Unsubscribe<onRunInputEvent>(OnAccelerateInput);
     }
     
     // ========================================================================
@@ -196,17 +202,15 @@ public class PlayerController : MonoBehaviour
         isCrouchHeld = ev.pressed;
     }
     
-    private void OnAccelerateInput(onRunInputEvent ev)
-    {
-        isAccelerateHeld = ev.pressed;
-    }
-    
     // ========================================================================
     // UPDATE LOOP
     // ========================================================================
     
     private void Update()
     {
+        // Update debug timer
+        timeSinceLastJump = Time.time - lastJumpTime;
+        
         // Handle special states first
         if (isClimbingLedge)
         {
@@ -340,10 +344,9 @@ public class PlayerController : MonoBehaviour
     
     private void HandleCrouch()
     {
-        // Check if crouch locked (during slide, etc)
+        // Check if crouch locked
         if (crouchLocked && !isCrouchHeld && groundDetection.IsGrounded && !groundDetection.IsOnSteepSlope)
         {
-            // Can we stand up?
             if (!CheckCeilingAbove())
             {
                 crouchLocked = false;
@@ -378,7 +381,8 @@ public class PlayerController : MonoBehaviour
         currentHeight = Mathf.Lerp(currentHeight, targetHeight, crouchTransitionSpeed * Time.deltaTime);
         
         controller.height = currentHeight;
-        controller.center = new Vector3(0f, currentHeight * 0.5f, 0f);
+        // FIXED: Use configurable center Y instead of calculating it
+        controller.center = new Vector3(0f, colliderCenterY, 0f);
     }
     
     private void StartCrouchSlide()
@@ -388,7 +392,6 @@ public class PlayerController : MonoBehaviour
         crouchSlideTimer = 0f;
         crouchSlideDirection = moveDirection.magnitude > 0.1f ? moveDirection.normalized : transform.forward;
         
-        // Add slide boost
         currentSpeed += crouchSlideBoost;
         
         EventBus.Raise(new OnPlayerCrouchSlideStartEvent
@@ -422,7 +425,7 @@ public class PlayerController : MonoBehaviour
     }
     
     // ========================================================================
-    // MOVEMENT
+    // MOVEMENT - AUTO ACCELERATION (NO RUN BUTTON)
     // ========================================================================
     
     private void HandleMovement(GroundCheckResult groundResult)
@@ -436,18 +439,6 @@ public class PlayerController : MonoBehaviour
         cameraRight.Normalize();
         
         Vector3 inputDir = (cameraForward * inputDirection.y + cameraRight * inputDirection.x).normalized;
-        
-        // Determine target speed
-        float targetSpeed = walkSpeed;
-        if (isCrouching && !isCrouchSliding)
-        {
-            targetSpeed = crouchSpeed;
-        }
-        else if (isAccelerateHeld && !isCrouching)
-        {
-            // Gradual acceleration to max speed over time
-            targetSpeed = Mathf.Lerp(walkSpeed, maxSpeed, currentSpeed / maxSpeed);
-        }
         
         // Handle crouch sliding
         if (isCrouchSliding)
@@ -463,19 +454,35 @@ public class PlayerController : MonoBehaviour
             return;
         }
         
-        // Normal movement
+        // Normal movement with AUTO ACCELERATION
         if (inputDir.magnitude > 0.1f)
         {
-            float accel = groundResult.isGrounded ? acceleration : airAcceleration;
-            float controlMult = groundResult.isGrounded ? 1f : airControlFraction;
+            // Increase move time while moving
+            moveTime += Time.deltaTime;
             
-            // When grounded, accelerate toward target
-            // When in air, reduced control
-            currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, accel * controlMult * Time.deltaTime);
+            // Calculate target speed based on how long we've been moving
+            if (isCrouching)
+            {
+                targetSpeed = crouchSpeed;
+                moveTime = 0f; // Reset acceleration when crouching
+            }
+            else
+            {
+                // Lerp from minSpeed to maxSpeed based on move time
+                float accelerationProgress = Mathf.Clamp01(moveTime / accelerationTime);
+                targetSpeed = Mathf.Lerp(minSpeed, maxSpeed, accelerationProgress);
+            }
             
+            // Apply acceleration
+            float accel = groundResult.isGrounded ? 
+                (maxSpeed - minSpeed) / accelerationTime : // Smooth acceleration on ground
+                airAcceleration * airControlFraction;       // Reduced in air
+            
+            currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, accel * Time.deltaTime);
+            
+            // Rotate toward input direction
             if (groundResult.isGrounded && !groundDetection.IsOnSteepSlope)
             {
-                // Rotate toward input direction
                 Quaternion targetRotation = Quaternion.LookRotation(inputDir, Vector3.up);
                 transform.rotation = Quaternion.RotateTowards(
                     transform.rotation,
@@ -488,6 +495,9 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
+            // Reset move time when not moving
+            moveTime = 0f;
+            
             // Decelerate
             float decel = groundResult.isGrounded ? deceleration : deceleration * 0.3f;
             currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, decel * Time.deltaTime);
@@ -521,7 +531,6 @@ public class PlayerController : MonoBehaviour
             EndCrouchSlide(CrouchSlideEndReason.Released);
         }
         
-        // Raise crouch sliding event
         EventBus.Raise(new OnPlayerCrouchSlidingEvent
         {
             Player = gameObject,
@@ -535,11 +544,9 @@ public class PlayerController : MonoBehaviour
         Vector3 slideDirection = groundDetection.GetSlideDirection();
         float angle = groundResult.angle;
         
-        // Calculate slide acceleration based on angle
         float angleNormalized = (angle - groundDetection.MaxWalkableAngle) / (90f - groundDetection.MaxWalkableAngle);
         float slideAccel = Mathf.Lerp(slideAccelerationMin, slideAccelerationMax, angleNormalized);
         
-        // Accelerate downhill
         currentSpeed += slideAccel * Time.deltaTime;
         
         // Allow lateral movement
@@ -554,7 +561,6 @@ public class PlayerController : MonoBehaviour
             moveDirection = slideDirection;
         }
         
-        // Rotate toward slide direction
         if (moveDirection.magnitude > 0.1f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection, groundResult.normal);
@@ -583,7 +589,7 @@ public class PlayerController : MonoBehaviour
         bool canJump = (groundResult.isGrounded || coyoteTimer > 0f) && !isJumping;
         bool hasBufferedJump = jumpBufferTimer > 0f;
         
-        // Jump cut - releasing button reduces jump height
+        // Jump cut
         if (!isJumpHeld && isJumping && verticalVelocity > 0f)
         {
             verticalVelocity *= jumpCutMultiplier;
@@ -598,7 +604,7 @@ public class PlayerController : MonoBehaviour
     
     private void DetermineAndPerformJump(GroundCheckResult groundResult)
     {
-        // Ground pound jump has highest priority
+        // Ground pound jump
         if (canGroundPoundJump)
         {
             PerformJump(JumpType.GroundPoundJump, groundPoundJumpForce, moveDirection * currentSpeed);
@@ -606,10 +612,10 @@ public class PlayerController : MonoBehaviour
             return;
         }
         
-        // Check for special crouch jumps
+        // Crouch jumps
         if (isCrouching || isCrouchSliding)
         {
-            // Long jump: crouch sliding + jump
+            // Long jump from crouch slide
             if (isCrouchSliding && currentSpeed > crouchSlideMinSpeed)
             {
                 EndCrouchSlide(CrouchSlideEndReason.Jumped);
@@ -617,7 +623,7 @@ public class PlayerController : MonoBehaviour
                 return;
             }
             
-            // Backflip: crouching stationary, or crouching with quick turn, or pressing back
+            // Backflip conditions
             bool isStationary = currentSpeed < 1f;
             bool isPressingBack = inputDirection.y < -0.5f;
             bool didQuickTurn = quickTurnTimer > 0f;
@@ -637,7 +643,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
         
-        // Multi-jump chain (reduced speed requirement)
+        // Multi-jump chain
         float horizontalSpeed = new Vector3(controller.velocity.x, 0, controller.velocity.z).magnitude;
         bool hasEnoughSpeed = horizontalSpeed >= minSpeedForMultiJump || currentSpeed >= minSpeedForMultiJump;
         bool inTimeWindow = Time.time - lastJumpTime < tripleJumpWindow;
@@ -666,10 +672,7 @@ public class PlayerController : MonoBehaviour
         coyoteTimer = 0f;
         airTime = 0f;
         
-        // Set vertical velocity
         verticalVelocity = force;
-        
-        // Set horizontal momentum
         jumpMomentum = horizontalMomentum;
         momentumSystem.SetMomentum(horizontalMomentum, MomentumSource.Jump);
         
@@ -679,16 +682,15 @@ public class PlayerController : MonoBehaviour
         else if (type == JumpType.Triple) jumpCount = 3;
         else jumpCount = 1;
         
-        // Handle backflip rotation
+        // Handle backflip
         if (type == JumpType.Backflip)
         {
-            // Flip 180 degrees
             transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y + 180f, 0f);
             crouchLocked = false;
             isCrouching = false;
         }
         
-        // Handle long jump unlock
+        // Handle long jump
         if (type == JumpType.Long)
         {
             crouchLocked = false;
@@ -711,17 +713,15 @@ public class PlayerController : MonoBehaviour
     
     private void HandleGroundPound()
     {
-        // Start ground pound in air when pressing crouch
         if (!groundDetection.IsGrounded && isCrouchHeld && !wasCrouchPressed && 
             !isGroundPounding && !isGroundPoundStarting && !isDiving)
         {
-            if (verticalVelocity < jumpForce * 0.5f) // Not at the start of a jump
+            if (verticalVelocity < jumpForce * 0.5f)
             {
                 StartGroundPound();
             }
         }
         
-        // Ground pound delay (freeze in air)
         if (isGroundPoundStarting)
         {
             groundPoundTimer += Time.deltaTime;
@@ -764,7 +764,6 @@ public class PlayerController : MonoBehaviour
     
     private void HandleDive()
     {
-        // Dive: Press jump during ground pound freeze
         if (isGroundPoundStarting && isJumpHeld && !wasJumpPressed)
         {
             StartDive();
@@ -778,7 +777,6 @@ public class PlayerController : MonoBehaviour
         isDiving = true;
         diveTimer = 0f;
         
-        // Calculate dive direction (forward and slightly down)
         Vector3 diveDir = transform.forward;
         
         verticalVelocity = diveForce;
@@ -797,7 +795,6 @@ public class PlayerController : MonoBehaviour
     private void EndDive()
     {
         isDiving = false;
-        // Land in prone/crouch position
         isCrouching = true;
         crouchLocked = true;
     }
@@ -809,21 +806,18 @@ public class PlayerController : MonoBehaviour
     private void CheckLedgeGrab()
     {
         if (groundDetection.IsGrounded || isGrabbingLedge || isClimbingLedge) return;
-        if (verticalVelocity > 0f) return; // Only grab when falling
+        if (verticalVelocity > 0f) return;
         if (isGroundPounding || isDiving) return;
         
         Vector3 forwardDir = transform.forward;
         Vector3 checkOrigin = transform.position + Vector3.up * (currentHeight - ledgeGrabHeight);
         
-        // Check for wall ahead
         if (Physics.Raycast(checkOrigin, forwardDir, out RaycastHit wallHit, ledgeGrabDistance, ledgeLayer))
         {
-            // Check for ledge top
             Vector3 ledgeCheckOrigin = wallHit.point + forwardDir * 0.1f + Vector3.up * ledgeGrabHeight;
             
             if (Physics.Raycast(ledgeCheckOrigin, Vector3.down, out RaycastHit ledgeHit, ledgeGrabHeight + 0.2f, ledgeLayer))
             {
-                // Check if there's space to stand
                 Vector3 standCheckOrigin = ledgeHit.point + Vector3.up * (normalHeight * 0.5f + 0.1f);
                 
                 if (!Physics.CheckSphere(standCheckOrigin, controller.radius * 0.8f, ledgeLayer))
@@ -843,12 +837,10 @@ public class PlayerController : MonoBehaviour
         jumpMomentum = Vector3.zero;
         momentumSystem.ClearMomentum();
         
-        // Position player OUTSIDE the wall
         Vector3 hangPosition = ledgePoint + wallNormal * (controller.radius + 0.05f);
         hangPosition.y = ledgePoint.y - currentHeight + ledgeGrabHeight;
         transform.position = hangPosition;
         
-        // Face the wall
         transform.rotation = Quaternion.LookRotation(-wallNormal);
         
         EventBus.Raise(new OnPlayerLedgeGrabEvent
@@ -864,28 +856,24 @@ public class PlayerController : MonoBehaviour
     {
         verticalVelocity = 0f;
         
-        // Jump off ledge
         if (isJumpHeld && !wasJumpPressed)
         {
             LedgeJump();
             return;
         }
         
-        // Drop from ledge
         if (inputDirection.y < -0.5f)
         {
             ReleaseLedge();
             return;
         }
         
-        // Climb up
         if (inputDirection.y > 0.5f)
         {
             StartLedgeClimb();
             return;
         }
         
-        // Move sideways along ledge
         if (Mathf.Abs(inputDirection.x) > 0.1f)
         {
             MoveLedgeSideways(inputDirection.x);
@@ -894,14 +882,10 @@ public class PlayerController : MonoBehaviour
     
     private void MoveLedgeSideways(float direction)
     {
-        // Calculate sideways movement direction
         Vector3 right = Vector3.Cross(Vector3.up, -ledgeNormal).normalized;
         Vector3 moveDir = right * direction;
         
-        // Check if we can move in that direction
         Vector3 targetPos = transform.position + moveDir * ledgeMoveSpeed * Time.deltaTime;
-        
-        // Check if there's still a ledge at the target position
         Vector3 checkOrigin = targetPos + Vector3.up * (currentHeight - ledgeGrabHeight);
         
         if (Physics.Raycast(checkOrigin, -ledgeNormal, out RaycastHit wallHit, ledgeGrabDistance, ledgeLayer))
@@ -910,12 +894,10 @@ public class PlayerController : MonoBehaviour
             
             if (Physics.Raycast(ledgeCheckOrigin, Vector3.down, out RaycastHit ledgeHit, ledgeGrabHeight + 0.2f, ledgeLayer))
             {
-                // Update position
                 Vector3 hangPosition = ledgeHit.point + wallHit.normal * (controller.radius + 0.05f);
                 hangPosition.y = ledgeHit.point.y - currentHeight + ledgeGrabHeight;
                 transform.position = hangPosition;
                 
-                // Update facing direction (follow ledge curve)
                 ledgeNormal = wallHit.normal;
                 transform.rotation = Quaternion.LookRotation(-ledgeNormal);
                 ledgePosition = ledgeHit.point;
@@ -942,7 +924,6 @@ public class PlayerController : MonoBehaviour
         jumpMomentum = ledgeNormal * ledgeJumpForce * 0.6f;
         momentumSystem.SetMomentum(jumpMomentum, MomentumSource.Jump);
         
-        // Face away from wall
         transform.rotation = Quaternion.LookRotation(ledgeNormal);
         
         EventBus.Raise(new OnPlayerLedgeGrabEvent
@@ -1020,7 +1001,6 @@ public class PlayerController : MonoBehaviour
             return;
         }
         
-        // Movement curve: up first, then forward
         float upT = Mathf.Clamp01(t * 2f);
         float forwardT = Mathf.Clamp01((t - 0.3f) / 0.7f);
         
@@ -1053,18 +1033,15 @@ public class PlayerController : MonoBehaviour
             });
         }
         
-        // Only reset jump state if not in ground pound jump window
         if (!canGroundPoundJump)
         {
             isJumping = false;
-            // DON'T reset jumpCount here - let the timer handle it for multi-jumps
         }
         else
         {
             isJumping = false;
         }
         
-        // Transfer some jump momentum to ground momentum
         if (jumpMomentum.magnitude > 1f)
         {
             momentumSystem.AddMomentum(jumpMomentum * 0.5f, MomentumSource.Movement);
@@ -1101,13 +1078,11 @@ public class PlayerController : MonoBehaviour
         
         if (groundResult.isGrounded && !isJumping)
         {
-            // Apply ground stick force
             float stickForce = groundDetection.CalculateGroundStickForce(currentSpeed);
             verticalVelocity = -stickForce;
         }
         else
         {
-            // Normal gravity
             verticalVelocity += gravity * Time.deltaTime;
             verticalVelocity = Mathf.Max(verticalVelocity, maxFallSpeed);
         }
@@ -1126,10 +1101,8 @@ public class PlayerController : MonoBehaviour
         
         if (!groundResult.isGrounded)
         {
-            // Air movement
             Vector3 airVelocity = jumpMomentum;
             
-            // Apply air control
             if (currentSpeed > 0.1f && moveDirection.magnitude > 0.1f)
             {
                 Vector3 airControl = moveDirection * currentSpeed * airControlFraction;
@@ -1140,7 +1113,6 @@ public class PlayerController : MonoBehaviour
             velocity = airVelocity;
             velocity.y = verticalVelocity;
             
-            // Raise airborne event
             EventBus.Raise(new OnPlayerAirborneEvent
             {
                 Player = gameObject,
@@ -1150,12 +1122,10 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // Ground movement
             Vector3 groundVelocity;
             
             if (groundResult.angle > 1f)
             {
-                // Project movement onto slope
                 groundVelocity = groundDetection.ProjectOnSlope(moveDirection) * currentSpeed;
             }
             else
@@ -1163,14 +1133,12 @@ public class PlayerController : MonoBehaviour
                 groundVelocity = moveDirection * currentSpeed;
             }
             
-            // Combine with momentum
             velocity = momentumSystem.GetCombinedVelocity(groundVelocity);
             velocity.y = verticalVelocity;
         }
         
         controller.Move(velocity * Time.deltaTime);
         
-        // Raise speed event
         float horizontalSpeed = new Vector3(velocity.x, 0, velocity.z).magnitude;
         EventBus.Raise(new OnPlayerSpeedEvent
         {
@@ -1193,13 +1161,11 @@ public class PlayerController : MonoBehaviour
         
         if (groundResult.isGrounded && groundResult.angle > 5f)
         {
-            // Align to slope
             Quaternion aligned = groundDetection.GetSlopeAlignedRotation(transform.rotation);
             transform.rotation = Quaternion.Slerp(transform.rotation, aligned, slopeAlignmentSpeed * Time.deltaTime);
         }
         else if (!groundResult.isGrounded)
         {
-            // Return to upright in air
             Vector3 euler = transform.eulerAngles;
             Quaternion upright = Quaternion.Euler(0f, euler.y, 0f);
             transform.rotation = Quaternion.Slerp(transform.rotation, upright, slopeAlignmentSpeed * 0.5f * Time.deltaTime);
@@ -1230,13 +1196,11 @@ public class PlayerController : MonoBehaviour
     
     private PlayerState DetermineState(GroundCheckResult groundResult)
     {
-        // Special states first
         if (isClimbingLedge) return PlayerState.LedgeClimbing;
         if (isGrabbingLedge) return PlayerState.LedgeGrabbing;
         if (isGroundPoundStarting || isGroundPounding) return PlayerState.GroundPounding;
         if (isDiving) return PlayerState.Diving;
         
-        // Air states
         if (!groundResult.isGrounded)
         {
             if (isJumping)
@@ -1253,7 +1217,6 @@ public class PlayerController : MonoBehaviour
             return PlayerState.Falling;
         }
         
-        // Ground states
         if (isCrouchSliding) return PlayerState.CrouchSliding;
         if (groundResult.isOnSteepSlope) return PlayerState.SlopeSliding;
         
@@ -1263,56 +1226,150 @@ public class PlayerController : MonoBehaviour
         }
         
         if (currentSpeed < 0.5f) return PlayerState.Idle;
-        if (currentSpeed > walkSpeed + 1f) return PlayerState.Running;
+        if (currentSpeed > (minSpeed + maxSpeed) * 0.5f) return PlayerState.Running;
         return PlayerState.Walking;
     }
     
     // ========================================================================
-    // DEBUG
+    // DEBUG GIZMOS
     // ========================================================================
     
     private void OnDrawGizmos()
     {
         if (!Application.isPlaying) return;
         
-        // Jump momentum
-        if (!groundDetection.IsGrounded && jumpMomentum.magnitude > 0.1f)
+        // Movement gizmos
+        if (showMovementGizmos)
         {
-            Gizmos.color = Color.yellow;
-            Vector3 start = transform.position + Vector3.up;
-            Gizmos.DrawLine(start, start + jumpMomentum * 0.2f);
-        }
-        
-        // Movement direction
-        if (moveDirection.magnitude > 0.1f)
-        {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(transform.position + Vector3.up * 0.5f, 
-                           transform.position + Vector3.up * 0.5f + moveDirection * currentSpeed * 0.2f);
-        }
-        
-        // State indicator
-        Gizmos.color = currentState switch
-        {
-            PlayerState.Idle => Color.white,
-            PlayerState.Walking => Color.green,
-            PlayerState.Running => Color.cyan,
-            PlayerState.Crouching => Color.yellow,
-            PlayerState.CrouchSliding => Color.magenta,
-            PlayerState.Jumping => Color.blue,
-            PlayerState.Falling => Color.red,
-            PlayerState.GroundPounding => new Color(1f, 0.5f, 0f),
-            PlayerState.LedgeGrabbing => Color.cyan,
-            _ => Color.gray
-        };
-        Gizmos.DrawWireSphere(transform.position + Vector3.up * 2.5f, 0.2f);
-        
-        // Jump count
-        if (jumpCount > 0)
-        {
-            for (int i = 0; i < jumpCount; i++)
+            // Movement direction
+            if (moveDirection.magnitude > 0.1f)
             {
-                Gizmos.DrawWireSphere(transform.position + Vector3.up * (2.8f + i * 0.3f), 0.1f);
+                Gizmos.color = Color.blue;
+                Vector3 start = transform.position + Vector3.up * 0.5f;
+                Gizmos.DrawLine(start, start + moveDirection * currentSpeed * 0.2f);
+                Gizmos.DrawWireSphere(start + moveDirection * currentSpeed * 0.2f, 0.1f);
+            }
+            
+            // Target speed indicator
+            Gizmos.color = Color.green;
+            Vector3 speedBarStart = transform.position + Vector3.up * 2.2f + Vector3.left * 0.5f;
+            float speedProgress = currentSpeed / maxSpeed;
+            Gizmos.DrawLine(speedBarStart, speedBarStart + Vector3.right * speedProgress);
+            
+            // Acceleration progress
+            Gizmos.color = Color.yellow;
+            float accelProgress = Mathf.Clamp01(moveTime / accelerationTime);
+            Vector3 accelBarStart = transform.position + Vector3.up * 2.4f + Vector3.left * 0.5f;
+            Gizmos.DrawLine(accelBarStart, accelBarStart + Vector3.right * accelProgress);
+        }
+        
+        // Jump gizmos
+        if (showJumpGizmos)
+        {
+            // Jump momentum
+            if (!groundDetection.IsGrounded && jumpMomentum.magnitude > 0.1f)
+            {
+                Gizmos.color = Color.yellow;
+                Vector3 start = transform.position + Vector3.up;
+                Gizmos.DrawLine(start, start + jumpMomentum * 0.2f);
+            }
+            
+            // Jump count indicator
+            if (jumpCount > 0)
+            {
+                Gizmos.color = jumpCount == 1 ? Color.white : (jumpCount == 2 ? Color.yellow : Color.cyan);
+                for (int i = 0; i < jumpCount; i++)
+                {
+                    Gizmos.DrawWireSphere(transform.position + Vector3.up * (2.8f + i * 0.3f), 0.1f);
+                }
+            }
+            
+            // Triple jump window indicator
+            if (jumpCount > 0 && groundDetection.IsGrounded)
+            {
+                float timeLeft = tripleJumpWindow - (Time.time - lastJumpTime);
+                if (timeLeft > 0)
+                {
+                    Gizmos.color = Color.Lerp(Color.red, Color.green, timeLeft / tripleJumpWindow);
+                    float windowProgress = timeLeft / tripleJumpWindow;
+                    Vector3 windowBarStart = transform.position + Vector3.up * 2.6f + Vector3.left * 0.5f;
+                    Gizmos.DrawLine(windowBarStart, windowBarStart + Vector3.right * windowProgress);
+                }
+            }
+            
+            // Coyote time indicator
+            if (!groundDetection.IsGrounded && coyoteTimer > 0)
+            {
+                Gizmos.color = new Color(1f, 0.5f, 0f, coyoteTimer / coyoteTime);
+                Gizmos.DrawWireSphere(transform.position, 0.3f);
+            }
+        }
+        
+        // State gizmos
+        if (showStateGizmos)
+        {
+            Gizmos.color = currentState switch
+            {
+                PlayerState.Idle => Color.white,
+                PlayerState.Walking => Color.green,
+                PlayerState.Running => Color.cyan,
+                PlayerState.Crouching => Color.yellow,
+                PlayerState.CrouchSliding => Color.magenta,
+                PlayerState.Jumping => Color.blue,
+                PlayerState.DoubleJumping => new Color(0.5f, 0.5f, 1f),
+                PlayerState.TripleJumping => new Color(0f, 1f, 1f),
+                PlayerState.Falling => Color.red,
+                PlayerState.GroundPounding => new Color(1f, 0.5f, 0f),
+                PlayerState.LedgeGrabbing => Color.cyan,
+                PlayerState.Diving => new Color(1f, 0f, 0.5f),
+                _ => Color.gray
+            };
+            Gizmos.DrawWireSphere(transform.position + Vector3.up * 2.5f, 0.2f);
+            
+            // Ground pound indicator
+            if (isGroundPounding || isGroundPoundStarting)
+            {
+                Gizmos.color = isGroundPoundStarting ? Color.yellow : Color.red;
+                Gizmos.DrawWireSphere(transform.position + Vector3.down * 0.5f, 0.5f);
+            }
+        }
+        
+        // Collider gizmos
+        if (showColliderGizmos && controller != null)
+        {
+            if (crouchLocked)
+                Gizmos.color = Color.red;
+            else if (isCrouching)
+                Gizmos.color = Color.yellow;
+            else
+                Gizmos.color = Color.white;
+            
+            Vector3 center = transform.position + controller.center;
+            Vector3 bottom = center + Vector3.down * (controller.height * 0.5f - controller.radius);
+            Vector3 top = center + Vector3.up * (controller.height * 0.5f - controller.radius);
+            Gizmos.DrawWireSphere(bottom, controller.radius);
+            Gizmos.DrawWireSphere(top, controller.radius);
+            Gizmos.DrawLine(bottom + Vector3.left * controller.radius, top + Vector3.left * controller.radius);
+            Gizmos.DrawLine(bottom + Vector3.right * controller.radius, top + Vector3.right * controller.radius);
+            Gizmos.DrawLine(bottom + Vector3.forward * controller.radius, top + Vector3.forward * controller.radius);
+            Gizmos.DrawLine(bottom + Vector3.back * controller.radius, top + Vector3.back * controller.radius);
+        }
+        
+        // Ledge gizmos
+        if (showLedgeGizmos)
+        {
+            if (!groundDetection.IsGrounded && !isGrabbingLedge)
+            {
+                Gizmos.color = Color.cyan;
+                Vector3 checkOrigin = transform.position + Vector3.up * (currentHeight - ledgeGrabHeight);
+                Gizmos.DrawLine(checkOrigin, checkOrigin + transform.forward * ledgeGrabDistance);
+            }
+            
+            if (isGrabbingLedge)
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawWireSphere(ledgePosition, 0.2f);
+                Gizmos.DrawLine(ledgePosition, ledgePosition + ledgeNormal);
             }
         }
     }

@@ -19,7 +19,13 @@ public class PlayerGroundDetection : MonoBehaviour
     [SerializeField] private float maxWalkableAngle = 45f;
     [SerializeField] private float slopeNormalSmoothSpeed = 15f;
     
-    [Header("Debug")]
+    [Header("Debug Gizmos")]
+    [SerializeField] private bool showGroundRays = true;
+    [SerializeField] private bool showSlopeNormal = true;
+    [SerializeField] private bool showSlideDirection = true;
+    [SerializeField] private bool showGroundStickForce = true;
+    
+    [Header("Debug Info")]
     [SerializeField] private bool isGrounded;
     [SerializeField] private bool isOnSteepSlope;
     [SerializeField] private float currentSlopeAngle;
@@ -245,33 +251,54 @@ public class PlayerGroundDetection : MonoBehaviour
         if (!Application.isPlaying) return;
         
         // Ground rays
-        Gizmos.color = isGrounded ? Color.green : Color.red;
-        Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * rayLength);
-        
-        if (controller != null)
+        if (showGroundRays)
         {
-            float offset = controller.radius * 0.5f;
-            Gizmos.color = Color.gray;
-            Gizmos.DrawLine(rayOrigin + Vector3.forward * offset, rayOrigin + Vector3.forward * offset + Vector3.down * rayLength);
-            Gizmos.DrawLine(rayOrigin + Vector3.back * offset, rayOrigin + Vector3.back * offset + Vector3.down * rayLength);
-            Gizmos.DrawLine(rayOrigin + Vector3.left * offset, rayOrigin + Vector3.left * offset + Vector3.down * rayLength);
-            Gizmos.DrawLine(rayOrigin + Vector3.right * offset, rayOrigin + Vector3.right * offset + Vector3.down * rayLength);
+            Gizmos.color = isGrounded ? Color.green : Color.red;
+            Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * rayLength);
+            
+            if (controller != null)
+            {
+                float offset = controller.radius * 0.5f;
+                Gizmos.color = new Color(0.5f, 0.5f, 0.5f, 0.7f);
+                Gizmos.DrawLine(rayOrigin + Vector3.forward * offset, rayOrigin + Vector3.forward * offset + Vector3.down * rayLength);
+                Gizmos.DrawLine(rayOrigin + Vector3.back * offset, rayOrigin + Vector3.back * offset + Vector3.down * rayLength);
+                Gizmos.DrawLine(rayOrigin + Vector3.left * offset, rayOrigin + Vector3.left * offset + Vector3.down * rayLength);
+                Gizmos.DrawLine(rayOrigin + Vector3.right * offset, rayOrigin + Vector3.right * offset + Vector3.down * rayLength);
+            }
         }
         
         // Slope normal
-        if (isGrounded)
+        if (showSlopeNormal && isGrounded)
         {
             Gizmos.color = isOnSteepSlope ? Color.red : Color.cyan;
             Vector3 groundPoint = transform.position;
             Gizmos.DrawLine(groundPoint, groundPoint + smoothedSlopeNormal * 2f);
             
-            // Slide direction
+            // Slope angle arc
             if (currentSlopeAngle > 1f)
             {
-                Gizmos.color = Color.yellow;
-                Vector3 slideDir = GetSlideDirection();
-                Gizmos.DrawLine(groundPoint + Vector3.up * 0.5f, groundPoint + Vector3.up * 0.5f + slideDir * 2f);
+                Gizmos.color = Color.Lerp(Color.green, Color.red, currentSlopeAngle / 90f);
+                Gizmos.DrawWireSphere(groundPoint + smoothedSlopeNormal * 2f, 0.15f);
             }
+        }
+        
+        // Slide direction
+        if (showSlideDirection && isGrounded && currentSlopeAngle > 1f)
+        {
+            Gizmos.color = Color.yellow;
+            Vector3 slideDir = GetSlideDirection();
+            Vector3 groundPoint = transform.position + Vector3.up * 0.5f;
+            Gizmos.DrawLine(groundPoint, groundPoint + slideDir * 2f);
+            Gizmos.DrawWireSphere(groundPoint + slideDir * 2f, 0.1f);
+        }
+        
+        // Ground stick force indicator
+        if (showGroundStickForce && isGrounded)
+        {
+            float stickNormalized = (currentGroundStickForce - groundStickForceMin) / (groundStickForceMax - groundStickForceMin);
+            Gizmos.color = Color.Lerp(Color.green, Color.red, stickNormalized);
+            Vector3 groundPoint = transform.position;
+            Gizmos.DrawLine(groundPoint, groundPoint + Vector3.down * (currentGroundStickForce * 0.05f));
         }
     }
 }

@@ -28,10 +28,6 @@ public class onInteractInputEvent : InputEventBase
 {
 }
 
-public class onRunInputEvent : InputEventBase
-{
-}
-
 public class onCrouchInputEvent : InputEventBase
 {
 }

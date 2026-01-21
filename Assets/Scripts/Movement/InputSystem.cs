@@ -13,18 +13,16 @@ public class InputSystem : MonoBehaviour
     // Store current input values for continuous polling
     private Vector2 currentMoveInput;
     private Vector2 currentLookInput;
-    private bool isMoving;
-    private bool isLooking;
 
     private void Awake()
     {
         inputs = new MyInputs();
 
-        // Movement - track both performed and canceled
+        // Movement
         inputs.Player.Move.performed += OnMovePerformed;
         inputs.Player.Move.canceled += OnMoveCanceled;
         
-        // Look - track both performed and canceled
+        // Look
         inputs.Player.Look.performed += OnLookPerformed;
         inputs.Player.Look.canceled += OnLookCanceled;
         
@@ -35,8 +33,6 @@ public class InputSystem : MonoBehaviour
         inputs.Player.Jump.canceled += OnJumpInput;
         inputs.Player.Crouch.performed += OnCrouchInput;
         inputs.Player.Crouch.canceled += OnCrouchInput;
-        inputs.Player.Sprint.performed += OnRunInput;
-        inputs.Player.Sprint.canceled += OnRunInput;
         
         Debug.Log("[InputSystem] Initialized");
     }
@@ -55,22 +51,18 @@ public class InputSystem : MonoBehaviour
     
     private void Update()
     {
-        // Continuously send look input every frame (fixes controller issue)
-        // This ensures camera updates even when stick is held in same position
-        if (isLooking || currentLookInput.sqrMagnitude > 0.0001f)
-        {
-            EventBus.Raise(new onLookInputEvent()
-            {
-                pressed = isLooking,
-                Delta = currentLookInput
-            });
-        }
-        
-        // Continuously send move input for smooth movement
+        // Send move input every frame
         EventBus.Raise(new onMoveInputEvent()
         {
-            pressed = isMoving,
+            pressed = currentMoveInput.sqrMagnitude > 0.01f,
             Direction = currentMoveInput
+        });
+        
+        // Send look input every frame (for controller support)
+        EventBus.Raise(new onLookInputEvent()
+        {
+            pressed = currentLookInput.sqrMagnitude > 0.01f,
+            Delta = currentLookInput
         });
     }
     
@@ -81,13 +73,11 @@ public class InputSystem : MonoBehaviour
     private void OnMovePerformed(InputAction.CallbackContext context)
     {
         currentMoveInput = context.ReadValue<Vector2>();
-        isMoving = true;
     }
     
     private void OnMoveCanceled(InputAction.CallbackContext context)
     {
         currentMoveInput = Vector2.zero;
-        isMoving = false;
     }
     
     // ========================================================================
@@ -97,13 +87,12 @@ public class InputSystem : MonoBehaviour
     private void OnLookPerformed(InputAction.CallbackContext context)
     {
         currentLookInput = context.ReadValue<Vector2>();
-        isLooking = true;
     }
     
     private void OnLookCanceled(InputAction.CallbackContext context)
     {
+        // IMPORTANT: Reset to zero when released
         currentLookInput = Vector2.zero;
-        isLooking = false;
     }
     
     // ========================================================================
@@ -113,14 +102,6 @@ public class InputSystem : MonoBehaviour
     private void OnInteractInput(InputAction.CallbackContext context)
     {
         EventBus.Raise(new onInteractInputEvent()
-        {
-            pressed = context.performed
-        });
-    }
-
-    private void OnRunInput(InputAction.CallbackContext context)
-    {
-        EventBus.Raise(new onRunInputEvent()
         {
             pressed = context.performed
         });

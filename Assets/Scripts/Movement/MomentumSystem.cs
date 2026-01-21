@@ -8,14 +8,14 @@ public class MomentumSystem : MonoBehaviour
 {
     [Header("Momentum Settings")]
     [SerializeField] private float baseDecay = 3f;
-    [SerializeField] private float opposedDecay = 8f;        // When moving against momentum
-    [SerializeField] private float sideDecay = 5f;           // When moving perpendicular
-    [SerializeField] private float alignedDecay = 2f;        // When moving with momentum
+    [SerializeField] private float opposedDecay = 8f;
+    [SerializeField] private float sideDecay = 5f;
+    [SerializeField] private float alignedDecay = 2f;
     [SerializeField] private float maxMomentum = 30f;
     
     [Header("Momentum Fighting")]
-    [SerializeField] private float fightStrength = 0.7f;     // How much input fights momentum
-    [SerializeField] private float fightRampTime = 0.3f;     // Time to reach full fight strength
+    [SerializeField] private float fightStrength = 0.7f;
+    [SerializeField] private float fightRampTime = 0.3f;
     
     [Header("Source Weights")]
     [SerializeField] private float movementWeight = 1f;
@@ -23,10 +23,16 @@ public class MomentumSystem : MonoBehaviour
     [SerializeField] private float slideWeight = 1.2f;
     [SerializeField] private float groundPoundWeight = 0.5f;
     
-    [Header("Debug")]
+    [Header("Debug Gizmos")]
+    [SerializeField] private bool showMomentumVector = true;
+    [SerializeField] private bool showFightIndicator = true;
+    [SerializeField] private bool showAlignmentIndicator = true;
+    
+    [Header("Debug Info")]
     [SerializeField] private Vector3 currentMomentum;
     [SerializeField] private float momentumMagnitude;
     [SerializeField] private float fightProgress;
+    [SerializeField] private float alignment;
     
     private Vector3 previousInputDirection;
     private float fightTimer;
@@ -45,7 +51,6 @@ public class MomentumSystem : MonoBehaviour
         
         currentMomentum += addedMomentum;
         
-        // Clamp to max
         if (currentMomentum.magnitude > maxMomentum)
         {
             currentMomentum = currentMomentum.normalized * maxMomentum;
@@ -97,11 +102,12 @@ public class MomentumSystem : MonoBehaviour
             momentumMagnitude = 0f;
             fightTimer = 0f;
             isFighting = false;
+            alignment = 0f;
             return;
         }
         
         // Calculate alignment with momentum
-        float alignment = 0f;
+        alignment = 0f;
         if (inputDirection.magnitude > 0.1f && currentMomentum.magnitude > 0.1f)
         {
             alignment = Vector3.Dot(inputDirection.normalized, currentMomentum.normalized);
@@ -126,7 +132,6 @@ public class MomentumSystem : MonoBehaviour
                 fightTimer += Time.deltaTime;
                 fightProgress = Mathf.Clamp01(fightTimer / fightRampTime);
                 
-                // Apply fight force
                 float fightForce = fightStrength * fightProgress * inputSpeed;
                 Vector3 fightDirection = -currentMomentum.normalized;
                 currentMomentum += fightDirection * fightForce * Time.deltaTime;
@@ -145,7 +150,6 @@ public class MomentumSystem : MonoBehaviour
                 fightTimer = 0f;
                 isFighting = false;
                 
-                // Add some momentum when moving in same direction
                 if (inputSpeed > currentMomentum.magnitude * 0.5f)
                 {
                     currentMomentum = Vector3.Lerp(currentMomentum, inputDirection * inputSpeed, Time.deltaTime * 2f);
@@ -154,7 +158,6 @@ public class MomentumSystem : MonoBehaviour
         }
         else
         {
-            // No input - natural decay
             fightTimer = 0f;
             isFighting = false;
         }
@@ -162,7 +165,7 @@ public class MomentumSystem : MonoBehaviour
         // Apply grounded modifier
         if (!isGrounded)
         {
-            decayRate *= 0.5f; // Slower decay in air
+            decayRate *= 0.5f;
         }
         
         // Apply decay
@@ -182,10 +185,8 @@ public class MomentumSystem : MonoBehaviour
             return inputVelocity;
         }
         
-        // Blend input with momentum
         Vector3 combined = inputVelocity + currentMomentum * blendFactor;
         
-        // When fighting momentum, reduce momentum influence
         if (isFighting)
         {
             float reducedBlend = blendFactor * (1f - fightProgress * 0.5f);
@@ -233,20 +234,47 @@ public class MomentumSystem : MonoBehaviour
     {
         if (!Application.isPlaying) return;
         
-        if (currentMomentum.magnitude > 0.1f)
+        if (currentMomentum.magnitude < 0.1f) return;
+        
+        Vector3 start = transform.position + Vector3.up;
+        
+        // Momentum vector
+        if (showMomentumVector)
         {
-            // Draw momentum vector
             Gizmos.color = isFighting ? Color.red : Color.cyan;
-            Vector3 start = transform.position + Vector3.up;
             Gizmos.DrawLine(start, start + currentMomentum * 0.2f);
             Gizmos.DrawWireSphere(start + currentMomentum * 0.2f, 0.1f);
             
-            // Fight progress indicator
-            if (isFighting)
-            {
-                Gizmos.color = Color.Lerp(Color.yellow, Color.green, fightProgress);
-                Gizmos.DrawWireSphere(transform.position + Vector3.up * 2f, 0.1f + fightProgress * 0.2f);
-            }
+            // Momentum magnitude bar
+            Gizmos.color = Color.Lerp(Color.green, Color.red, momentumMagnitude / maxMomentum);
+            Vector3 barStart = transform.position + Vector3.up * 1.8f + Vector3.left * 0.3f;
+            float barLength = (momentumMagnitude / maxMomentum) * 0.6f;
+            Gizmos.DrawLine(barStart, barStart + Vector3.right * barLength);
+        }
+        
+        // Fight indicator
+        if (showFightIndicator && isFighting)
+        {
+            Gizmos.color = Color.Lerp(Color.yellow, Color.green, fightProgress);
+            Gizmos.DrawWireSphere(transform.position + Vector3.up * 2f, 0.1f + fightProgress * 0.2f);
+            
+            // Fight progress bar
+            Vector3 fightBarStart = transform.position + Vector3.up * 2.0f + Vector3.left * 0.3f;
+            Gizmos.DrawLine(fightBarStart, fightBarStart + Vector3.right * (fightProgress * 0.6f));
+        }
+        
+        // Alignment indicator
+        if (showAlignmentIndicator && previousInputDirection.magnitude > 0.1f)
+        {
+            // Color based on alignment: red = opposed, yellow = perpendicular, green = aligned
+            if (alignment < -0.3f)
+                Gizmos.color = Color.red;
+            else if (alignment < 0.3f)
+                Gizmos.color = Color.yellow;
+            else
+                Gizmos.color = Color.green;
+            
+            Gizmos.DrawLine(start + Vector3.up * 0.3f, start + Vector3.up * 0.3f + previousInputDirection * 0.5f);
         }
     }
 }

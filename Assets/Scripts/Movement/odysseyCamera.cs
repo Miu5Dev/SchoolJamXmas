@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Third-person camera controller for Mario Odyssey-style gameplay.
-/// Fixed to properly handle continuous controller input.
+/// Fixed to properly handle continuous controller input and stop when released.
 /// </summary>
 public class OdysseyCamera : MonoBehaviour
 {
@@ -17,7 +17,7 @@ public class OdysseyCamera : MonoBehaviour
     
     [Header("Rotation")]
     [SerializeField] private float rotationSensitivity = 0.15f;
-    [SerializeField] private float controllerSensitivity = 100f; // For continuous controller input
+    [SerializeField] private float controllerSensitivity = 100f;
     [SerializeField] private float minVerticalAngle = -20f;
     [SerializeField] private float maxVerticalAngle = 60f;
     
@@ -32,11 +32,14 @@ public class OdysseyCamera : MonoBehaviour
     [SerializeField] private float collisionRadius = 0.3f;
     [SerializeField] private LayerMask collisionLayers = ~0;
     
+    [Header("Debug")]
+    [SerializeField] private bool showGizmos = true;
+    [SerializeField] private bool showInputDebug = false;
+    
     private float horizontalAngle;
     private float verticalAngle = 20f;
     private Vector3 currentVelocity;
     private Vector2 lookInput;
-    private bool hasLookInput;
     private float currentDistance;
 
     void OnEnable()
@@ -54,8 +57,14 @@ public class OdysseyCamera : MonoBehaviour
 
     private void OnLookInput(onLookInputEvent ev)
     {
+        // Directly use the delta from input system
+        // It will be zero when analog is released
         lookInput = ev.Delta;
-        hasLookInput = ev.pressed || ev.Delta.sqrMagnitude > 0.0001f;
+        
+        if (showInputDebug)
+        {
+            Debug.Log($"[Camera] Look Input: {lookInput}, Pressed: {ev.pressed}");
+        }
     }
 
     void LateUpdate()
@@ -69,11 +78,12 @@ public class OdysseyCamera : MonoBehaviour
 
     private void HandleRotationInput()
     {
-        if (!hasLookInput && lookInput.sqrMagnitude < 0.0001f) return;
+        // Only rotate if there's actual input
+        if (lookInput.sqrMagnitude < 0.0001f) return;
         
         // Determine if input is from mouse (large delta) or controller (small continuous)
         float inputMagnitude = lookInput.magnitude;
-        bool isControllerInput = inputMagnitude < 10f && inputMagnitude > 0.01f;
+        bool isControllerInput = inputMagnitude < 5f;
         
         if (isControllerInput)
         {
@@ -89,8 +99,6 @@ public class OdysseyCamera : MonoBehaviour
         }
         
         verticalAngle = Mathf.Clamp(verticalAngle, minVerticalAngle, maxVerticalAngle);
-        
-        // Don't reset lookInput here - it's updated every frame by InputSystem
     }
 
     private void HandleZoom()
@@ -105,7 +113,6 @@ public class OdysseyCamera : MonoBehaviour
         Quaternion rotation = Quaternion.Euler(verticalAngle, horizontalAngle, 0f);
         
         Vector3 targetPosition = target.position + targetOffset;
-        Vector3 desiredPosition = targetPosition - (rotation * Vector3.forward * distance);
         
         // Handle camera collision
         float finalDistance = distance;
@@ -117,13 +124,13 @@ public class OdysseyCamera : MonoBehaviour
         // Smooth distance transitions
         currentDistance = Mathf.Lerp(currentDistance, finalDistance, 10f * Time.deltaTime);
         
-        // Calculate final position with smoothed distance
-        desiredPosition = targetPosition - (rotation * Vector3.forward * currentDistance);
+        // Calculate final position
+        Vector3 desiredPosition = targetPosition - (rotation * Vector3.forward * currentDistance);
         
-        // Smooth position only, not rotation
+        // Smooth position
         transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref currentVelocity, positionSmoothTime);
         
-        // Direct rotation without smoothing
+        // Direct rotation
         transform.LookAt(targetPosition);
     }
     
@@ -133,7 +140,7 @@ public class OdysseyCamera : MonoBehaviour
         
         if (Physics.SphereCast(targetPos, collisionRadius, direction, out RaycastHit hit, distance, collisionLayers))
         {
-            return hit.distance - collisionRadius;
+            return Mathf.Max(hit.distance - collisionRadius, minDistance);
         }
         
         return distance;
@@ -161,5 +168,38 @@ public class OdysseyCamera : MonoBehaviour
     public Vector3 GetFlatRight()
     {
         return Quaternion.Euler(0f, horizontalAngle, 0f) * Vector3.right;
+    }
+    
+    private void OnDrawGizmos()
+    {
+        if (!showGizmos || !Application.isPlaying || target == null) return;
+        
+        Vector3 targetPos = target.position + targetOffset;
+        
+        // Target position
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(targetPos, 0.2f);
+        
+        // Camera-to-target line
+        Gizmos.color = Color.white;
+        Gizmos.DrawLine(transform.position, targetPos);
+        
+        // Collision sphere path
+        if (enableCollision)
+        {
+            Gizmos.color = new Color(1f, 0.5f, 0f, 0.5f);
+            Quaternion rotation = Quaternion.Euler(verticalAngle, horizontalAngle, 0f);
+            Vector3 direction = rotation * Vector3.back;
+            Gizmos.DrawLine(targetPos, targetPos + direction * distance);
+            Gizmos.DrawWireSphere(targetPos + direction * currentDistance, collisionRadius);
+        }
+        
+        // Current look input indicator
+        if (lookInput.sqrMagnitude > 0.01f)
+        {
+            Gizmos.color = Color.green;
+            Vector3 inputIndicator = transform.position + transform.right * lookInput.x * 0.5f + transform.up * lookInput.y * 0.5f;
+            Gizmos.DrawLine(transform.position, inputIndicator);
+        }
     }
 }

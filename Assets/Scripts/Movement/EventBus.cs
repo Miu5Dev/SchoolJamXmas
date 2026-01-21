@@ -52,7 +52,6 @@ public static class EventBus
         
         if (handlers.TryGetValue(eventType, out var list))
         {
-            // ToArray to avoid modification during iteration
             foreach (var handler in list.ToArray())
             {
                 try
