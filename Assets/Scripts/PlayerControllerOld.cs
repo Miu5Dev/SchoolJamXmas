@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class PlayerControllerOld : MonoBehaviour
 {
     //Dialog Dependencies START
     [SerializeField] private DialogueUI dialogueUI;

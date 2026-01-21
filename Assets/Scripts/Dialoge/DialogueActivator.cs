@@ -14,7 +14,7 @@ public class DialogueActivator : MonoBehaviour, Interactable
     private void OnTriggerEnter(Collider other)
     {
         interactionIcon.SetActive(true);
-        if (other.CompareTag("Player") && other.TryGetComponent(out PlayerController player))
+        if (other.CompareTag("Player") && other.TryGetComponent(out PlayerControllerOld player))
         {
             player.interactable = this;
         }
@@ -22,7 +22,7 @@ public class DialogueActivator : MonoBehaviour, Interactable
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player") && other.TryGetComponent(out PlayerController player))
+        if (other.CompareTag("Player") && other.TryGetComponent(out PlayerControllerOld player))
         {
             interactionIcon.SetActive(false);
             if (player.interactable is DialogueActivator dialogueActivator && dialogueActivator == this)
@@ -33,7 +33,7 @@ public class DialogueActivator : MonoBehaviour, Interactable
 
     }
 
-    public void Interact(PlayerController player)
+    public void Interact(PlayerControllerOld player)
     {
         foreach (DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>())
         {
