@@ -7,6 +7,9 @@ public class DoorAnimationTrigger : MonoBehaviour
     private bool isPlayerInFrontHitbox = false;
     private bool isPlayerInBackHitbox = false;
     public GameObject interactionIcon;
+    public bool oneTimeUse = false;
+    private bool opened = false;
+    public float wait = 0.2f;
 
     private void OnEnable()
     {
@@ -20,12 +23,14 @@ public class DoorAnimationTrigger : MonoBehaviour
     
     private void doStuff(onInteractInputEvent ev)
     {
-        
-        Debug.Log("Interacting with door");
-        
         if (isPlayerInFrontHitbox)
         {
             StartCoroutine(TriggerDoor(true));
+            if (oneTimeUse)
+            {
+                interactionIcon.SetActive(false);
+                opened = true;
+            }
         }
         else if (isPlayerInBackHitbox)
         {
@@ -39,14 +44,14 @@ public class DoorAnimationTrigger : MonoBehaviour
         doorAnimator.SetBool("FrontSide", isFrontSide);
         doorAnimator.SetTrigger("IsToggled");
         
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(wait);
         
         doorAnimator.ResetTrigger("IsToggled");
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player") && opened == false)
         {
             isPlayerInFrontHitbox = true;
             interactionIcon.SetActive(true);
