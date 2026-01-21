@@ -86,8 +86,10 @@ public class PlayerController : MonoBehaviour
     
     [Header("Momentum Landing Settings")]
     [SerializeField] private float landingMomentumRetain = 0.85f;
+    [SerializeField] private float minLandingMomentumRetain = 0.5f;
     [SerializeField] private float landingMomentumBlendTime = 0.2f;
     [SerializeField] private float minLandingMomentum = 2f;
+    [SerializeField] private float maxFallSpeedForRetention = 30f;
     
     [Header("Debug Gizmos")]
     [SerializeField] private bool showMovementGizmos = true;
@@ -1082,8 +1084,8 @@ public class PlayerController : MonoBehaviour
             preLandingVelocity = jumpMomentum;
             
             // Calculate retain factor based on fall speed (harder landings = less retention)
-            float fallSpeedFactor = Mathf.Clamp01(1f - (fallSpeed / 30f));
-            float retainFactor = Mathf.Lerp(0.5f, landingMomentumRetain, fallSpeedFactor);
+            float fallSpeedFactor = Mathf.Clamp01(1f - (fallSpeed / maxFallSpeedForRetention));
+            float retainFactor = Mathf.Lerp(minLandingMomentumRetain, landingMomentumRetain, fallSpeedFactor);
             
             // Calculate landing momentum
             landingMomentum = jumpMomentum * retainFactor;
@@ -1092,8 +1094,8 @@ public class PlayerController : MonoBehaviour
             if (landingMomentum.magnitude >= minLandingMomentum)
             {
                 // Set current speed to match momentum magnitude for continuity
-                float horizontalMag = new Vector3(landingMomentum.x, 0f, landingMomentum.z).magnitude;
-                currentSpeed = Mathf.Max(currentSpeed, horizontalMag);
+                Vector3 horizontalMomentum = new Vector3(landingMomentum.x, 0f, landingMomentum.z);
+                currentSpeed = Mathf.Max(currentSpeed, horizontalMomentum.magnitude);
                 
                 // Start blending timer for smooth transition
                 isBlendingLandingMomentum = true;
