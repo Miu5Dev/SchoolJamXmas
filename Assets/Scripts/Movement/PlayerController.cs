@@ -84,6 +84,11 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool alignToSlope = true;
     [SerializeField] private float slopeAlignmentSpeed = 10f;
     
+    [Header("Momentum Landing Settings")]
+    [SerializeField] private float landingMomentumRetain = 0.85f;
+    [SerializeField] private float landingMomentumBlendTime = 0.2f;
+    [SerializeField] private float minLandingMomentum = 2f;
+    
     [Header("Debug Gizmos")]
     [SerializeField] private bool showMovementGizmos = true;
     [SerializeField] private bool showJumpGizmos = true;
@@ -134,6 +139,7 @@ public class PlayerController : MonoBehaviour
     private bool isGrabbingLedge;
     private bool isClimbingLedge;
     private bool crouchLocked;
+    private bool isNearLedge;
     
     // Movement data
     private Vector3 moveDirection;
@@ -147,6 +153,12 @@ public class PlayerController : MonoBehaviour
     private float currentHeight;
     private Vector3 previousMoveDirection;
     private float quickTurnTimer;
+    
+    // Landing momentum fields
+    private float landingBlendTimer;
+    private bool isBlendingLandingMomentum;
+    private Vector3 landingMomentum;
+    private Vector3 preLandingVelocity;
     
     // Properties
     public PlayerState CurrentState => currentState;
@@ -224,7 +236,11 @@ public class PlayerController : MonoBehaviour
         // Check for ledge grab
         if (!groundResult.isGrounded && !isGrabbingLedge && !isClimbingLedge)
         {
-            CheckLedgeGrab();
+            isNearLedge = CheckLedgeGrab();
+        }
+        else
+        {
+            isNearLedge = false;
         }
         
         if (isGrabbingLedge)
@@ -334,6 +350,16 @@ public class PlayerController : MonoBehaviour
             if (diveTimer >= diveDuration && groundResult.isGrounded)
             {
                 EndDive();
+            }
+        }
+        
+        // Landing blend timer
+        if (isBlendingLandingMomentum)
+        {
+            landingBlendTimer += Time.deltaTime;
+            if (landingBlendTimer >= landingMomentumBlendTime)
+            {
+                isBlendingLandingMomentum = false;
             }
         }
     }
@@ -672,6 +698,10 @@ public class PlayerController : MonoBehaviour
         coyoteTimer = 0f;
         airTime = 0f;
         
+        // Cancel landing blend and clear landing momentum
+        isBlendingLandingMomentum = false;
+        landingMomentum = Vector3.zero;
+        
         verticalVelocity = force;
         jumpMomentum = horizontalMomentum;
         momentumSystem.SetMomentum(horizontalMomentum, MomentumSource.Jump);
@@ -803,11 +833,11 @@ public class PlayerController : MonoBehaviour
     // LEDGE GRAB
     // ========================================================================
     
-    private void CheckLedgeGrab()
+    private bool CheckLedgeGrab()
     {
-        if (groundDetection.IsGrounded || isGrabbingLedge || isClimbingLedge) return;
-        if (verticalVelocity > 0f) return;
-        if (isGroundPounding || isDiving) return;
+        if (groundDetection.IsGrounded || isGrabbingLedge || isClimbingLedge) return false;
+        if (verticalVelocity > 0f) return false;
+        if (isGroundPounding || isDiving) return false;
         
         Vector3 forwardDir = transform.forward;
         Vector3 checkOrigin = transform.position + Vector3.up * (currentHeight - ledgeGrabHeight);
@@ -823,9 +853,12 @@ public class PlayerController : MonoBehaviour
                 if (!Physics.CheckSphere(standCheckOrigin, controller.radius * 0.8f, ledgeLayer))
                 {
                     GrabLedge(ledgeHit.point, wallHit.normal, wallHit.collider);
+                    return true;
                 }
+                return true; // Near ledge but can't grab
             }
         }
+        return false;
     }
     
     private void GrabLedge(Vector3 ledgePoint, Vector3 wallNormal, Collider ledgeCollider)
@@ -1042,9 +1075,34 @@ public class PlayerController : MonoBehaviour
             isJumping = false;
         }
         
+        // Improved momentum transfer
         if (jumpMomentum.magnitude > 1f)
         {
-            momentumSystem.AddMomentum(jumpMomentum * 0.5f, MomentumSource.Movement);
+            // Store pre-landing velocity
+            preLandingVelocity = jumpMomentum;
+            
+            // Calculate retain factor based on fall speed (harder landings = less retention)
+            float fallSpeedFactor = Mathf.Clamp01(1f - (fallSpeed / 30f));
+            float retainFactor = Mathf.Lerp(0.5f, landingMomentumRetain, fallSpeedFactor);
+            
+            // Calculate landing momentum
+            landingMomentum = jumpMomentum * retainFactor;
+            
+            // Only apply if above minimum threshold
+            if (landingMomentum.magnitude >= minLandingMomentum)
+            {
+                // Set current speed to match momentum magnitude for continuity
+                float horizontalMag = new Vector3(landingMomentum.x, 0f, landingMomentum.z).magnitude;
+                currentSpeed = Mathf.Max(currentSpeed, horizontalMag);
+                
+                // Start blending timer for smooth transition
+                isBlendingLandingMomentum = true;
+                landingBlendTimer = 0f;
+            }
+            else
+            {
+                landingMomentum = Vector3.zero;
+            }
         }
         jumpMomentum = Vector3.zero;
         airTime = 0f;
@@ -1131,6 +1189,14 @@ public class PlayerController : MonoBehaviour
             else
             {
                 groundVelocity = moveDirection * currentSpeed;
+            }
+            
+            // Blend landing momentum for smooth transition
+            if (isBlendingLandingMomentum && landingMomentum.magnitude > 0.1f)
+            {
+                float blendT = landingBlendTimer / landingMomentumBlendTime;
+                Vector3 momentumVelocity = new Vector3(landingMomentum.x, 0f, landingMomentum.z);
+                groundVelocity = Vector3.Lerp(momentumVelocity, groundVelocity, blendT);
             }
             
             velocity = momentumSystem.GetCombinedVelocity(groundVelocity);
