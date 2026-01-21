@@ -113,6 +113,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool isCrouchHeld;
     
     // Constants for momentum calculations
+    private const float MIN_SYSTEM_MOMENTUM_THRESHOLD = 0.5f;
     private const float MOMENTUM_BLEND_FACTOR = 0.5f;
     private const float SYSTEM_MOMENTUM_BLEND = 0.4f;
     private const float MOMENTUM_SPEED_CAP_MULTIPLIER = 1.5f;
@@ -123,6 +124,13 @@ public class PlayerController : MonoBehaviour
     private const float LANDING_ALIGNMENT_THRESHOLD = 0.7f;
     private const float GROUND_TO_AIR_GRAVITY_REDUCTION = 0.5f;
     private const float GROUND_TO_AIR_GRACE_PERIOD = 0.1f;
+    
+    // Constants for edge handling
+    private const float EDGE_STUCK_MOMENTUM_DECAY = 0.98f;
+    private const float EDGE_MOMENTUM_PUSH_MULTIPLIER = 0.8f;
+    private const float EDGE_INPUT_PUSH_MULTIPLIER = 0.5f;
+    private const float MIN_HORIZONTAL_VELOCITY_THRESHOLD = 0.5f;
+    private const float MIN_INPUT_DIRECTION_THRESHOLD = 0.1f;
     
     // Components
     private CharacterController controller;
@@ -318,7 +326,7 @@ public class PlayerController : MonoBehaviour
             
             // Take the combined momentum for a natural feel
             jumpMomentum = groundVelocity;
-            if (systemMomentum.magnitude > MOMENTUM_BLEND_FACTOR)
+            if (systemMomentum.magnitude > MIN_SYSTEM_MOMENTUM_THRESHOLD)
             {
                 jumpMomentum += systemMomentum * MOMENTUM_BLEND_FACTOR;
             }
@@ -730,7 +738,7 @@ public class PlayerController : MonoBehaviour
         
         // FIX #4B: Consider momentum system when calculating jump momentum for smoother bunny-hop chains
         Vector3 systemMomentum = momentumSystem.CurrentMomentum;
-        if (systemMomentum.magnitude > MOMENTUM_BLEND_FACTOR)
+        if (systemMomentum.magnitude > MIN_SYSTEM_MOMENTUM_THRESHOLD)
         {
             // Blend horizontal momentum with system momentum for smoother chaining
             horizontalMomentum = Vector3.Lerp(horizontalMomentum, horizontalMomentum + systemMomentum * SYSTEM_MOMENTUM_BLEND, MOMENTUM_BLEND_FACTOR);
@@ -1278,18 +1286,18 @@ public class PlayerController : MonoBehaviour
             
             // Add momentum in movement direction to slide off naturally
             Vector3 horizontalVel = new Vector3(jumpMomentum.x, 0f, jumpMomentum.z);
-            if (horizontalVel.magnitude > 0.5f)
+            if (horizontalVel.magnitude > MIN_HORIZONTAL_VELOCITY_THRESHOLD)
             {
-                unstickMove += horizontalVel.normalized * pushStrength * 0.8f;
+                unstickMove += horizontalVel.normalized * pushStrength * EDGE_MOMENTUM_PUSH_MULTIPLIER;
             }
-            else if (moveDirection.magnitude > 0.1f)
+            else if (moveDirection.magnitude > MIN_INPUT_DIRECTION_THRESHOLD)
             {
                 // Use input direction if no momentum
-                unstickMove += moveDirection * pushStrength * 0.5f;
+                unstickMove += moveDirection * pushStrength * EDGE_INPUT_PUSH_MULTIPLIER;
             }
             
             // DON'T decay momentum as aggressively - keep the flow
-            jumpMomentum *= 0.98f; // Changed from potential 0.9f
+            jumpMomentum *= EDGE_STUCK_MOMENTUM_DECAY;
             
             controller.Move(unstickMove);
             
