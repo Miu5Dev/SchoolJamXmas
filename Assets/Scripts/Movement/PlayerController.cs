@@ -698,27 +698,34 @@ public class PlayerController : MonoBehaviour
             return;
         }
         
-        // Crouch jumps
-        if (isCrouching || isCrouchSliding)
+        // Backflip on quick turn/direction change (not just when crouching)
+        bool isStationary = currentSpeed < 1f;
+        bool isPressingBack = inputDirection.y < -0.5f;
+        bool didQuickTurn = quickTurnTimer > 0f;
+        
+        if ((isCrouching || isCrouchSliding) && (isStationary || isPressingBack || didQuickTurn))
         {
-            // Long jump from crouch slide
-            if (isCrouchSliding && currentSpeed > crouchSlideMinSpeed)
+            // Backflip from crouch
+            if (isCrouchSliding)
             {
                 EndCrouchSlide(CrouchSlideEndReason.Jumped);
-                PerformJump(JumpType.Long, longJumpForce, transform.forward * longJumpHorizontalBoost);
-                return;
             }
-            
-            // Backflip conditions
-            bool isStationary = currentSpeed < 1f;
-            bool isPressingBack = inputDirection.y < -0.5f;
-            bool didQuickTurn = quickTurnTimer > 0f;
-            
-            if (isStationary || isPressingBack || didQuickTurn)
-            {
-                PerformJump(JumpType.Backflip, backflipForce, -transform.forward * backflipHorizontalForce);
-                return;
-            }
+            PerformJump(JumpType.Backflip, backflipForce, -transform.forward * backflipHorizontalForce);
+            return;
+        }
+        else if (didQuickTurn && currentSpeed > 3f)
+        {
+            // Backflip from quick direction change while moving
+            PerformJump(JumpType.Backflip, backflipForce, -transform.forward * backflipHorizontalForce);
+            return;
+        }
+        
+        // Long jump from crouch slide
+        if (isCrouchSliding && currentSpeed > crouchSlideMinSpeed)
+        {
+            EndCrouchSlide(CrouchSlideEndReason.Jumped);
+            PerformJump(JumpType.Long, longJumpForce, transform.forward * longJumpHorizontalBoost);
+            return;
         }
         
         // Slope jump
