@@ -24,6 +24,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] 
     private float airControlFraction = 0.125f;                  // 1/8 of ground control
     [SerializeField] private float airAcceleration = 15f;
+    [SerializeField] private float airMomentumDecay = 8f;
+    [SerializeField] private float airMomentumDecayControlled = 0.2f;    // Multiplier when player has input
+    [SerializeField] private float airMomentumDecayUncontrolled = 0.7f;  // Multiplier when no input
     
     [Header("Gravity")]
     [SerializeField] private float gravity = -35f;
@@ -80,6 +83,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float ledgeMoveSpeed = 3f;
     [SerializeField] private LayerMask ledgeLayer = ~0;
     
+    [Header("Edge Handling Settings")]
+    [SerializeField] private float edgeUnstickForce = 25f;
+    [SerializeField] private float edgeStuckVelocityThreshold = -5f;
+    [SerializeField] private float edgeResponseTime = 0.05f;
+    [SerializeField] private float edgeUnstickVelocity = -15f;
+    
     [Header("Visual Settings")]
     [SerializeField] private bool alignToSlope = true;
     [SerializeField] private float slopeAlignmentSpeed = 10f;
@@ -102,6 +111,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float timeSinceLastJump;
     [SerializeField] private bool isJumpHeld;
     [SerializeField] private bool isCrouchHeld;
+    
+    // Constants for momentum calculations
+    private const float MOMENTUM_BLEND_FACTOR = 0.5f;
+    private const float SYSTEM_MOMENTUM_BLEND = 0.4f;
+    private const float MOMENTUM_SPEED_CAP_MULTIPLIER = 1.5f;
+    private const float CROUCH_SLIDE_MOMENTUM_TRANSFER = 0.6f;
+    private const float CROUCH_SLIDE_SPEED_RETENTION = 0.7f;
+    private const float LANDING_MOMENTUM_BASE = 0.5f;
+    private const float LANDING_MOMENTUM_ALIGNED = 0.8f;
+    private const float LANDING_ALIGNMENT_THRESHOLD = 0.7f;
+    private const float GROUND_TO_AIR_GRAVITY_REDUCTION = 0.5f;
+    private const float GROUND_TO_AIR_GRACE_PERIOD = 0.1f;
     
     // Components
     private CharacterController controller;
@@ -297,15 +318,15 @@ public class PlayerController : MonoBehaviour
             
             // Take the combined momentum for a natural feel
             jumpMomentum = groundVelocity;
-            if (systemMomentum.magnitude > 0.5f)
+            if (systemMomentum.magnitude > MOMENTUM_BLEND_FACTOR)
             {
-                jumpMomentum += systemMomentum * 0.5f;
+                jumpMomentum += systemMomentum * MOMENTUM_BLEND_FACTOR;
             }
             
             // Cap to prevent excessive speed
-            if (jumpMomentum.magnitude > maxSpeed * 1.5f)
+            if (jumpMomentum.magnitude > maxSpeed * MOMENTUM_SPEED_CAP_MULTIPLIER)
             {
-                jumpMomentum = jumpMomentum.normalized * maxSpeed * 1.5f;
+                jumpMomentum = jumpMomentum.normalized * maxSpeed * MOMENTUM_SPEED_CAP_MULTIPLIER;
             }
         }
         
@@ -436,10 +457,10 @@ public class PlayerController : MonoBehaviour
         {
             // Transfer slide momentum to movement system for smooth transition
             Vector3 slideMomentum = crouchSlideDirection * finalSpeed;
-            momentumSystem.AddMomentum(slideMomentum * 0.6f, MomentumSource.Movement);
+            momentumSystem.AddMomentum(slideMomentum * CROUCH_SLIDE_MOMENTUM_TRANSFER, MomentumSource.Movement);
             
             // Keep some speed in the current speed
-            currentSpeed = Mathf.Max(currentSpeed, finalSpeed * 0.7f);
+            currentSpeed = Mathf.Max(currentSpeed, finalSpeed * CROUCH_SLIDE_SPEED_RETENTION);
         }
         
         EventBus.Raise(new OnPlayerCrouchSlideEndEvent
@@ -709,10 +730,10 @@ public class PlayerController : MonoBehaviour
         
         // FIX #4B: Consider momentum system when calculating jump momentum for smoother bunny-hop chains
         Vector3 systemMomentum = momentumSystem.CurrentMomentum;
-        if (systemMomentum.magnitude > 0.5f)
+        if (systemMomentum.magnitude > MOMENTUM_BLEND_FACTOR)
         {
             // Blend horizontal momentum with system momentum for smoother chaining
-            horizontalMomentum = Vector3.Lerp(horizontalMomentum, horizontalMomentum + systemMomentum * 0.4f, 0.5f);
+            horizontalMomentum = Vector3.Lerp(horizontalMomentum, horizontalMomentum + systemMomentum * SYSTEM_MOMENTUM_BLEND, MOMENTUM_BLEND_FACTOR);
         }
         
         jumpMomentum = horizontalMomentum;
@@ -1087,7 +1108,7 @@ public class PlayerController : MonoBehaviour
         // FIX #4D: Speed preservation on landing - check alignment between input and momentum
         if (jumpMomentum.magnitude > 1f)
         {
-            float momentumPreservation = 0.5f;
+            float momentumPreservation = LANDING_MOMENTUM_BASE;
             
             // If player is holding input in the same direction as momentum, preserve more speed
             if (inputDirection.magnitude > 0.1f && moveDirection.magnitude > 0.1f)
@@ -1096,9 +1117,9 @@ public class PlayerController : MonoBehaviour
                 float alignment = Vector3.Dot(moveDirection.normalized, horizontalMomentum.normalized);
                 
                 // If aligned (moving same direction), preserve more momentum
-                if (alignment > 0.7f)
+                if (alignment > LANDING_ALIGNMENT_THRESHOLD)
                 {
-                    momentumPreservation = 0.8f; // Keep 80% of momentum
+                    momentumPreservation = LANDING_MOMENTUM_ALIGNED; // Keep 80% of momentum
                 }
             }
             
@@ -1143,10 +1164,10 @@ public class PlayerController : MonoBehaviour
         {
             // FIX #3C & #4C: Reduce gravity briefly when just left ground for smoother transition
             float currentGravity = gravity;
-            if (airTime < 0.1f && !isJumping)
+            if (airTime < GROUND_TO_AIR_GRACE_PERIOD && !isJumping)
             {
                 // Just left ground - reduce gravity briefly for smoother transition
-                currentGravity *= 0.5f;
+                currentGravity *= GROUND_TO_AIR_GRAVITY_REDUCTION;
             }
             
             verticalVelocity += currentGravity * Time.deltaTime;
@@ -1195,7 +1216,7 @@ public class PlayerController : MonoBehaviour
                 }
                 else
                 {
-                    float decayRate = 8f * 0.2f * Time.deltaTime; // airMomentumDecay equivalent
+                    float decayRate = airMomentumDecay * airMomentumDecayControlled * Time.deltaTime;
                     airVelocity = Vector3.MoveTowards(airVelocity, Vector3.zero, decayRate);
                 }
             }
@@ -1205,7 +1226,7 @@ public class PlayerController : MonoBehaviour
                 // Don't decay during coyote time (Fix #4E)
                 if (coyoteTimer <= 0f)
                 {
-                    float decayRate = 8f * 0.7f * Time.deltaTime;
+                    float decayRate = airMomentumDecay * airMomentumDecayUncontrolled * Time.deltaTime;
                     airVelocity = Vector3.MoveTowards(airVelocity, Vector3.zero, decayRate);
                 }
             }
@@ -1245,12 +1266,12 @@ public class PlayerController : MonoBehaviour
         // Detect if stuck on edge: side collision + not grounded + falling
         CollisionFlags collisionFlags = controller.Move(velocity * Time.deltaTime);
         bool hasSideCollision = (collisionFlags & CollisionFlags.Sides) != 0;
-        bool isStuckOnEdge = hasSideCollision && !groundResult.isGrounded && verticalVelocity < -5f;
+        bool isStuckOnEdge = hasSideCollision && !groundResult.isGrounded && verticalVelocity < edgeStuckVelocityThreshold;
         
         if (isStuckOnEdge)
         {
             // Immediate strong push to unstick
-            float pushStrength = 25f * Time.deltaTime;
+            float pushStrength = edgeUnstickForce * Time.deltaTime;
             
             // Push down and slightly outward from the edge
             Vector3 unstickMove = Vector3.down * pushStrength;
@@ -1273,9 +1294,9 @@ public class PlayerController : MonoBehaviour
             controller.Move(unstickMove);
             
             edgeStuckTimer += Time.deltaTime;
-            if (edgeStuckTimer > 0.05f) // Faster response (was 0.1f)
+            if (edgeStuckTimer > edgeResponseTime)
             {
-                verticalVelocity = Mathf.Min(verticalVelocity, -15f); // Stronger push (was -10f)
+                verticalVelocity = Mathf.Min(verticalVelocity, edgeUnstickVelocity);
             }
         }
         
