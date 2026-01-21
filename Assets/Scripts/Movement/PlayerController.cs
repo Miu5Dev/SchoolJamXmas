@@ -122,6 +122,7 @@ public class PlayerController : MonoBehaviour
     private float diveTimer;
     private float ledgeClimbTimer;
     private float airTime;
+    private float edgeStuckTimer;
     
     // State flags
     private bool isJumping;
@@ -287,6 +288,27 @@ public class PlayerController : MonoBehaviour
             airTime += Time.deltaTime;
         }
         
+        // FIX #3A: Transfer full ground velocity to air momentum when leaving ground without jumping
+        if (groundResult.justLeftGround && !isJumping)
+        {
+            // Transfer ALL ground momentum to air
+            Vector3 groundVelocity = moveDirection * currentSpeed;
+            Vector3 systemMomentum = momentumSystem.CurrentMomentum;
+            
+            // Take the combined momentum for a natural feel
+            jumpMomentum = groundVelocity;
+            if (systemMomentum.magnitude > 0.5f)
+            {
+                jumpMomentum += systemMomentum * 0.5f;
+            }
+            
+            // Cap to prevent excessive speed
+            if (jumpMomentum.magnitude > maxSpeed * 1.5f)
+            {
+                jumpMomentum = jumpMomentum.normalized * maxSpeed * 1.5f;
+            }
+        }
+        
         // Jump buffer
         if (isJumpHeld && !wasJumpPressed)
         {
@@ -408,6 +430,17 @@ public class PlayerController : MonoBehaviour
         
         float finalSpeed = currentSpeed;
         isCrouchSliding = false;
+        
+        // FIX #4A: Transfer remaining speed to regular movement momentum
+        if (finalSpeed > minSpeed && moveDirection.magnitude > 0.1f)
+        {
+            // Transfer slide momentum to movement system for smooth transition
+            Vector3 slideMomentum = crouchSlideDirection * finalSpeed;
+            momentumSystem.AddMomentum(slideMomentum * 0.6f, MomentumSource.Movement);
+            
+            // Keep some speed in the current speed
+            currentSpeed = Mathf.Max(currentSpeed, finalSpeed * 0.7f);
+        }
         
         EventBus.Raise(new OnPlayerCrouchSlideEndEvent
         {
@@ -673,6 +706,15 @@ public class PlayerController : MonoBehaviour
         airTime = 0f;
         
         verticalVelocity = force;
+        
+        // FIX #4B: Consider momentum system when calculating jump momentum for smoother bunny-hop chains
+        Vector3 systemMomentum = momentumSystem.CurrentMomentum;
+        if (systemMomentum.magnitude > 0.5f)
+        {
+            // Blend horizontal momentum with system momentum for smoother chaining
+            horizontalMomentum = Vector3.Lerp(horizontalMomentum, horizontalMomentum + systemMomentum * 0.4f, 0.5f);
+        }
+        
         jumpMomentum = horizontalMomentum;
         momentumSystem.SetMomentum(horizontalMomentum, MomentumSource.Jump);
         
@@ -1042,9 +1084,25 @@ public class PlayerController : MonoBehaviour
             isJumping = false;
         }
         
+        // FIX #4D: Speed preservation on landing - check alignment between input and momentum
         if (jumpMomentum.magnitude > 1f)
         {
-            momentumSystem.AddMomentum(jumpMomentum * 0.5f, MomentumSource.Movement);
+            float momentumPreservation = 0.5f;
+            
+            // If player is holding input in the same direction as momentum, preserve more speed
+            if (inputDirection.magnitude > 0.1f && moveDirection.magnitude > 0.1f)
+            {
+                Vector3 horizontalMomentum = new Vector3(jumpMomentum.x, 0f, jumpMomentum.z);
+                float alignment = Vector3.Dot(moveDirection.normalized, horizontalMomentum.normalized);
+                
+                // If aligned (moving same direction), preserve more momentum
+                if (alignment > 0.7f)
+                {
+                    momentumPreservation = 0.8f; // Keep 80% of momentum
+                }
+            }
+            
+            momentumSystem.AddMomentum(jumpMomentum * momentumPreservation, MomentumSource.Movement);
         }
         jumpMomentum = Vector3.zero;
         airTime = 0f;
@@ -1083,7 +1141,15 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            verticalVelocity += gravity * Time.deltaTime;
+            // FIX #3C & #4C: Reduce gravity briefly when just left ground for smoother transition
+            float currentGravity = gravity;
+            if (airTime < 0.1f && !isJumping)
+            {
+                // Just left ground - reduce gravity briefly for smoother transition
+                currentGravity *= 0.5f;
+            }
+            
+            verticalVelocity += currentGravity * Time.deltaTime;
             verticalVelocity = Mathf.Max(verticalVelocity, maxFallSpeed);
         }
     }
@@ -1101,15 +1167,50 @@ public class PlayerController : MonoBehaviour
         
         if (!groundResult.isGrounded)
         {
+            // FIX #3B: Better air control and momentum preservation
             Vector3 airVelocity = jumpMomentum;
             
-            if (currentSpeed > 0.1f && moveDirection.magnitude > 0.1f)
+            // Calculate camera-relative input direction
+            Vector3 cameraForward = cameraTransform.forward;
+            Vector3 cameraRight = cameraTransform.right;
+            cameraForward.y = 0f;
+            cameraRight.y = 0f;
+            cameraForward.Normalize();
+            cameraRight.Normalize();
+            Vector3 inputDir = (cameraForward * inputDirection.y + cameraRight * inputDirection.x).normalized;
+            
+            if (inputDir.magnitude > 0.1f)
             {
-                Vector3 airControl = moveDirection * currentSpeed * airControlFraction;
-                airVelocity = Vector3.Lerp(airVelocity, airControl + jumpMomentum * 0.5f, Time.deltaTime * 3f);
-                jumpMomentum = airVelocity;
+                inputDir.Normalize();
+                
+                // Stronger air control force (1.5x boost)
+                Vector3 airControlForce = inputDir * airAcceleration * airControlFraction * 1.5f;
+                airVelocity += airControlForce * Time.deltaTime;
+                
+                // Very slow decay when controlling - maintain momentum
+                // Only during coyote time, don't decay at all (Fix #4E)
+                if (coyoteTimer > 0f)
+                {
+                    // No decay during coyote time
+                }
+                else
+                {
+                    float decayRate = 8f * 0.2f * Time.deltaTime; // airMomentumDecay equivalent
+                    airVelocity = Vector3.MoveTowards(airVelocity, Vector3.zero, decayRate);
+                }
+            }
+            else
+            {
+                // Normal decay when not controlling, but still not too aggressive
+                // Don't decay during coyote time (Fix #4E)
+                if (coyoteTimer <= 0f)
+                {
+                    float decayRate = 8f * 0.7f * Time.deltaTime;
+                    airVelocity = Vector3.MoveTowards(airVelocity, Vector3.zero, decayRate);
+                }
             }
             
+            jumpMomentum = airVelocity;
             velocity = airVelocity;
             velocity.y = verticalVelocity;
             
@@ -1122,6 +1223,9 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
+            // Reset edge stuck timer when grounded
+            edgeStuckTimer = 0f;
+            
             Vector3 groundVelocity;
             
             if (groundResult.angle > 1f)
@@ -1137,7 +1241,43 @@ public class PlayerController : MonoBehaviour
             velocity.y = verticalVelocity;
         }
         
-        controller.Move(velocity * Time.deltaTime);
+        // FIX #2: Edge detection and handling
+        // Detect if stuck on edge: side collision + not grounded + falling
+        CollisionFlags collisionFlags = controller.Move(velocity * Time.deltaTime);
+        bool hasSideCollision = (collisionFlags & CollisionFlags.Sides) != 0;
+        bool isStuckOnEdge = hasSideCollision && !groundResult.isGrounded && verticalVelocity < -5f;
+        
+        if (isStuckOnEdge)
+        {
+            // Immediate strong push to unstick
+            float pushStrength = 25f * Time.deltaTime;
+            
+            // Push down and slightly outward from the edge
+            Vector3 unstickMove = Vector3.down * pushStrength;
+            
+            // Add momentum in movement direction to slide off naturally
+            Vector3 horizontalVel = new Vector3(jumpMomentum.x, 0f, jumpMomentum.z);
+            if (horizontalVel.magnitude > 0.5f)
+            {
+                unstickMove += horizontalVel.normalized * pushStrength * 0.8f;
+            }
+            else if (moveDirection.magnitude > 0.1f)
+            {
+                // Use input direction if no momentum
+                unstickMove += moveDirection * pushStrength * 0.5f;
+            }
+            
+            // DON'T decay momentum as aggressively - keep the flow
+            jumpMomentum *= 0.98f; // Changed from potential 0.9f
+            
+            controller.Move(unstickMove);
+            
+            edgeStuckTimer += Time.deltaTime;
+            if (edgeStuckTimer > 0.05f) // Faster response (was 0.1f)
+            {
+                verticalVelocity = Mathf.Min(verticalVelocity, -15f); // Stronger push (was -10f)
+            }
+        }
         
         float horizontalSpeed = new Vector3(velocity.x, 0, velocity.z).magnitude;
         EventBus.Raise(new OnPlayerSpeedEvent
@@ -1161,14 +1301,24 @@ public class PlayerController : MonoBehaviour
         
         if (groundResult.isGrounded && groundResult.angle > 5f)
         {
+            // Apply slope alignment while preserving yaw rotation toward movement direction
+            // This allows the character to tilt according to slope while moving
             Quaternion aligned = groundDetection.GetSlopeAlignedRotation(transform.rotation);
             transform.rotation = Quaternion.Slerp(transform.rotation, aligned, slopeAlignmentSpeed * Time.deltaTime);
         }
         else if (!groundResult.isGrounded)
         {
+            // When in air, smoothly return to upright while preserving yaw
             Vector3 euler = transform.eulerAngles;
             Quaternion upright = Quaternion.Euler(0f, euler.y, 0f);
             transform.rotation = Quaternion.Slerp(transform.rotation, upright, slopeAlignmentSpeed * 0.5f * Time.deltaTime);
+        }
+        else if (groundResult.isGrounded && groundResult.angle <= 5f)
+        {
+            // On flat ground, ensure we're upright
+            Vector3 euler = transform.eulerAngles;
+            Quaternion upright = Quaternion.Euler(0f, euler.y, 0f);
+            transform.rotation = Quaternion.Slerp(transform.rotation, upright, slopeAlignmentSpeed * Time.deltaTime);
         }
     }
     
