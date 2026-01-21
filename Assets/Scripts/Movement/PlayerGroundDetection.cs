@@ -6,13 +6,13 @@ using UnityEngine;
 public class PlayerGroundDetection : MonoBehaviour
 {
     [Header("Ground Check")]
-    [SerializeField] private float groundCheckDistance = 0.5f;
+    [SerializeField] private float groundCheckDistance = 1.5f;
     [SerializeField] private float groundCheckRadius = 0.3f;
     [SerializeField] private LayerMask groundLayer = ~0;
     
     [Header("Ground Stick")]
     [SerializeField] private float groundStickForceMin = 5f;
-    [SerializeField] private float groundStickForceMax = 30f;
+    [SerializeField] private float groundStickForceMax = 500f;
     [SerializeField] private float groundStickSpeedReference = 40f;
     
     [Header("Slope Settings")]

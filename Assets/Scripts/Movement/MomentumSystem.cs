@@ -8,7 +8,7 @@ public class MomentumSystem : MonoBehaviour
 {
     [Header("Momentum Settings")]
     [SerializeField] private float baseDecay = 3f;
-    [SerializeField] private float opposedDecay = 8f;
+    [SerializeField] private float opposedDecay = 20f;          // Increased for near-instant braking when running backwards
     [SerializeField] private float sideDecay = 5f;
     [SerializeField] private float alignedDecay = 2f;
     [SerializeField] private float maxMomentum = 30f;
@@ -17,8 +17,8 @@ public class MomentumSystem : MonoBehaviour
     [SerializeField] private float airWithInputDecayMultiplier = 0.4f;
     
     [Header("Momentum Fighting")]
-    [SerializeField] private float fightStrength = 0.7f;
-    [SerializeField] private float fightRampTime = 0.3f;
+    [SerializeField] private float fightStrength = 2.5f;        // Increased for near-instant braking when running backwards
+    [SerializeField] private float fightRampTime = 0.1f;        // Reduced for faster response
     
     [Header("Source Weights")]
     [SerializeField] private float movementWeight = 1f;
@@ -138,6 +138,14 @@ public class MomentumSystem : MonoBehaviour
                 float fightForce = fightStrength * fightProgress * inputSpeed;
                 Vector3 fightDirection = -currentMomentum.normalized;
                 currentMomentum += fightDirection * fightForce * Time.deltaTime;
+                
+                // Raise braking event for animations/sounds
+                EventBus.Raise(new OnPlayerBrakingEvent
+                {
+                    Player = gameObject,
+                    BrakingStrength = fightProgress,
+                    MomentumDirection = currentMomentum.normalized
+                });
             }
             else if (alignment < 0.3f)
             {

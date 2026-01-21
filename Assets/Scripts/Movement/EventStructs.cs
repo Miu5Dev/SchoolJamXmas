@@ -299,6 +299,37 @@ public enum GroundPoundPhase
     Bouncing     // After ground pound jump
 }
 
+// ============================================================================
+// ADDITIONAL EVENTS FOR ANIMATIONS AND SOUNDS
+// ============================================================================
+
+public class OnPlayerFootstepEvent : PlayerEventBase
+{
+    public Vector3 FootstepPosition;
+    public float Speed;
+    public bool IsRunning;
+}
+
+public class OnPlayerDirectionChangeEvent : PlayerEventBase
+{
+    public Vector3 OldDirection;
+    public Vector3 NewDirection;
+    public float TurnAngle;
+}
+
+public class OnPlayerBrakingEvent : PlayerEventBase
+{
+    public float BrakingStrength;
+    public Vector3 MomentumDirection;
+}
+
+public class OnPlayerWallContactEvent : PlayerEventBase
+{
+    public Vector3 ContactPoint;
+    public Vector3 ContactNormal;
+    public float ImpactSpeed;
+}
+
 public enum PlayerState
 {
     Idle,

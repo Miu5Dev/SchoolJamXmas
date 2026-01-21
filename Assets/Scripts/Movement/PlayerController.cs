@@ -18,7 +18,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float maxCombinedSpeed = 25f;      // Max combined speed (momentum + speed) to prevent glitches
     [SerializeField] private float crouchSpeed = 3f;
     [SerializeField] private float accelerationTime = 2f;       // Time to reach max speed
-    [SerializeField] private float deceleration = 40f;
+    [SerializeField] private float deceleration = 80f;          // Increased for better ground friction
     [SerializeField] private float turnSpeed = 720f;
     
     [Header("Air Control")]
@@ -30,7 +30,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float airMomentumDecayUncontrolled = 0.7f;  // Multiplier when no input
     
     [Header("Gravity")]
-    [SerializeField] private float gravity = -35f;
+    [SerializeField] private float gravity = -25f;              // Reduced for floatier platformer feel
     [SerializeField] private float maxFallSpeed = -50f;
     
     [Header("Jump Settings")]
@@ -677,11 +677,8 @@ public class PlayerController : MonoBehaviour
         bool canJump = (groundResult.isGrounded || coyoteTimer > 0f) && !isJumping;
         bool hasBufferedJump = jumpBufferTimer > 0f;
         
-        // Jump cut
-        if (!isJumpHeld && isJumping && verticalVelocity > 0f)
-        {
-            verticalVelocity *= jumpCutMultiplier;
-        }
+        // Jump cut removed - jumps always go to full height
+        // (User feedback: Saltar tiene que ser siempre a altura maxima del salto)
         
         if ((jumpPressed || hasBufferedJump) && canJump)
         {
