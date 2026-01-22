@@ -1,4 +1,7 @@
 using UnityEngine;
+using Quaternion = UnityEngine.Quaternion;
+using Vector2 = UnityEngine.Vector2;
+using Vector3 = UnityEngine.Vector3;
 
 public class PlayerController : MonoBehaviour
 {
@@ -15,6 +18,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float speedGain = 0.2f;
     [SerializeField] private float speedLose = 0.05f;
     [SerializeField] private float maxSpeed = 3.0f;
+    
+    [Header("On Slope Movement Rotation Settings")]
+    [SerializeField] private float rotationSmoothSpeed = 8f;
     
     [Header("Rotation")]
     [SerializeField] private float rotationSpeed = 720f; // Grados por segundo (más rápido = más responsivo)
@@ -38,6 +44,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Vector3 moveDirection = Vector3.zero;
     [SerializeField] private Vector3 targetMoveDirection = Vector3.zero;
     [SerializeField] private Vector2 inputDirection = Vector2.zero;
+    [SerializeField] private Vector3 SlopeNormal = Vector3.zero;
 
     /// <summary>
     /// PRIVATE VARIABLES
@@ -62,6 +69,8 @@ public class PlayerController : MonoBehaviour
         EventBus.Subscribe<OnActionInputEvent>(ActionToggle);
         EventBus.Subscribe<OnCrouchInputEvent>(CrouchToggle);
         EventBus.Subscribe<OnSwapInputEvent>(SwapToggle);
+        
+        EventBus.Subscribe<OnPlayerSlopeEvent>(OnSlope);
     }
 
     void OnDisable()
@@ -71,22 +80,9 @@ public class PlayerController : MonoBehaviour
         EventBus.Unsubscribe<OnActionInputEvent>(ActionToggle);
         EventBus.Unsubscribe<OnCrouchInputEvent>(CrouchToggle);
         EventBus.Unsubscribe<OnSwapInputEvent>(SwapToggle);
+        
+        EventBus.Unsubscribe<OnPlayerSlopeEvent>(OnSlope);
     }
-
-    private void MoveInputUpdater(OnMoveInputEvent e)
-    {
-        if (e.Direction.magnitude > 0.1f)
-        {
-            inputDirection = e.Direction;
-            RisingSpeed = true;
-        }
-        else
-        {
-            inputDirection = Vector2.zero;
-            RisingSpeed = false;
-        }
-    }
-
     private void Update()
     {
         controller.Move(new Vector3(0, Gravity, 0) * Time.deltaTime); // add gravity
@@ -96,6 +92,40 @@ public class PlayerController : MonoBehaviour
         MovementController();
     }
 
+
+
+    private void OnSlope(OnPlayerSlopeEvent ev)
+    {
+        Quaternion targetRotation;
+
+        if (ev.SlopeNormal != Vector3.zero)
+        {
+            // Obtener la rotación actual en el plano Y (yaw)
+            Vector3 forward = transform.forward;
+            Vector3 forwardProjected = Vector3.ProjectOnPlane(forward, ev.SlopeNormal).normalized;
+        
+            // Si la proyección es muy pequeña, mantener el forward actual
+            if (forwardProjected.magnitude < 0.1f)
+            {
+                forwardProjected = Vector3.ProjectOnPlane(Vector3.forward, ev.SlopeNormal).normalized;
+            }
+        
+            // Crear rotación que mira en la dirección forward preservada con el up del slope
+            targetRotation = Quaternion.LookRotation(forwardProjected, ev.SlopeNormal);
+        }
+        else
+        {
+            // Volver a la rotación plana preservando el Y
+            Vector3 currentForward = Vector3.ProjectOnPlane(transform.forward, transform.up).normalized;
+            targetRotation = Quaternion.LookRotation(currentForward, transform.up);
+        }
+
+        // Suavizar la rotación
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSmoothSpeed);
+
+        SlopeNormal = ev.SlopeNormal;
+    }
+    
     private void CalculateCameraRelativeMovement()
     {
         // Solo actualizar la dirección objetivo cuando hay input
@@ -192,7 +222,10 @@ public class PlayerController : MonoBehaviour
             });
         }
         
-        controller.Move(moveDirection * (currentSpeed * Time.deltaTime)); // Actually Move the character
+        if(SlopeNormal != Vector3.zero)
+            moveDirection = Vector3.ProjectOnPlane(moveDirection,SlopeNormal);
+        
+        controller.Move((moveDirection) * (currentSpeed * Time.deltaTime)); // Actually Move the character
     }
 
     private void JumpToggle(OnJumpInputEvent e)
@@ -214,4 +247,19 @@ public class PlayerController : MonoBehaviour
     {
         isCrouching = e.pressed;
     }
+    
+    private void MoveInputUpdater(OnMoveInputEvent e)
+    {
+        if (e.Direction.magnitude > 0.1f)
+        {
+            inputDirection = e.Direction;
+            RisingSpeed = true;
+        }
+        else
+        {
+            inputDirection = Vector2.zero;
+            RisingSpeed = false;
+        }
+    }
+
 }

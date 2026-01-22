@@ -819,7 +819,7 @@ Transform:
   m_GameObject: {fileID: 1055433921}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 13.824941, y: -0.17900892, z: 78.58848}
+  m_LocalPosition: {x: 11.41, y: -0.32, z: 0.92}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1773,9 +1773,9 @@ GameObject:
   - component: {fileID: 1766794624}
   - component: {fileID: 1766794623}
   - component: {fileID: 1766794622}
-  - component: {fileID: 1766794627}
   - component: {fileID: 1766794630}
   - component: {fileID: 1766794629}
+  - component: {fileID: 1766794631}
   m_Layer: 7
   m_Name: Capsule
   m_TagString: Untagged
@@ -1844,85 +1844,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1766794619}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: 0.71610945, w: 0.6979881}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1551824231}
   m_Father: {fileID: 1055433922}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 91.468}
---- !u!114 &1766794627
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1766794619}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 03b8ae8f275a4cdc9aefb3d50ac72807, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sphereRadius: 0.4
-  sphereDistance: 0.5
-  sphereOffset: {x: 0, y: -0.3, z: 0}
-  raycastDistance: 2.3
-  raycastSpacing: 0.5
-  raycastOriginOffset: {x: 0, y: 0, z: 0}
-  groundLayer:
-    m_Bits: 127
-  maxGroundAngle: 45
-  showGizmos: 1
-  sphereGizmoColor:
-    r: 0
-    g: 1
-    b: 0
-    a: 0.3
-  raycastGizmoColor:
-    r: 0
-    g: 1
-    b: 0.14357352
-    a: 1
-  raycastHitColor:
-    r: 0
-    g: 1
-    b: 0
-    a: 1
-  normalGizmoColor:
-    r: 0
-    g: 1
-    b: 1
-    a: 1
-  hardLandingThreshold: 5
-  trackGroundPound: 0
-  slopeAngleChangeThreshold: 2
-  isGrounded: 1
-  currentGroundAngle: 47.043674
-  groundNormal: {x: 0, y: 0.6814407, z: 0.7318734}
-  groundPoint: {x: 10.377789, y: 1.1350242, z: -6.5131016}
-  distanceToGround: 0.4267517
-  fallDistance: -0.008708775
-  slideDirection: {x: 0, y: 0, z: 0}
-  raycastHits: 
-  raycastOrigins:
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 0}
-  raycastDirections:
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 0}
-  sphereHitDetected: 0
-  wasGroundedLastFrame: 0
-  lastAirborneHeight: 0
-  highestAirbornePoint: 0
-  isPerformingGroundPound: 0
-  previousGroundAngle: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &1766794629
 CharacterController:
   m_ObjectHideFlags: 0
@@ -1967,6 +1896,7 @@ MonoBehaviour:
   speedGain: 0.3
   speedLose: 0.5
   maxSpeed: 8
+  rotationSmoothSpeed: 8
   rotationSpeed: 720
   rotationSpeedWhenSlow: 360
   minimumSpeedToRotate: 0.1
@@ -1980,6 +1910,38 @@ MonoBehaviour:
   moveDirection: {x: 0, y: 0, z: 0}
   targetMoveDirection: {x: 0, y: 0, z: 0}
   inputDirection: {x: 0, y: 0}
+  SlopeNormal: {x: 0, y: 0, z: 0}
+--- !u!114 &1766794631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1766794619}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da1eb619787e48bd93b89c2d734be712, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  centerOffset: {x: 0, y: -0.6, z: 0}
+  rayLength: 0.6
+  raySpacing: 0.3
+  groundMask:
+    m_Bits: 127
+  commitAngle: 5
+  requiredStableFrames: 10
+  proximityBias: 1.5
+  lerpSpeed: 12
+  showGizmos: 1
+  debugAngle: 0
+  debugSurface: 
+  closestSurface: 
+  stableFrameCount: 0
+  lockedNormal: {x: 0, y: 1, z: 0}
+  displayNormal: {x: 0, y: 1, z: 0}
+  candidateNormal: {x: 0, y: 1, z: 0}
+  candidateSurface: 
+  stableFrames: 0
 --- !u!1 &1890972299
 GameObject:
   m_ObjectHideFlags: 0
@@ -2202,6 +2164,6 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 379718950}
-  - {fileID: 412364037}
   - {fileID: 704859983}
+  - {fileID: 412364037}
   - {fileID: 1055433922}
