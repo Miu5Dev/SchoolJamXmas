@@ -18,6 +18,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float speedGain = 0.2f;
     [SerializeField] private float speedLose = 0.05f;
     [SerializeField] private float maxSpeed = 3.0f;
+    [SerializeField] private float AirDivider = 8f;
+    
+    [Header("Jump Values")]
+    [SerializeField] private float jumpForce = 10.0f;
     
     [Header("On Slope Movement Rotation Settings")]
     [SerializeField] private float rotationSmoothSpeed = 8f;
@@ -45,11 +49,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Vector3 targetMoveDirection = Vector3.zero;
     [SerializeField] private Vector2 inputDirection = Vector2.zero;
     [SerializeField] private Vector3 SlopeNormal = Vector3.zero;
-
+    [SerializeField] public float verticalVelocity = 0f;
+    [SerializeField] private Vector3 jumpMomentum = Vector3.zero; // NUEVA VARIABLE
+    [SerializeField] private bool grounded = false;
     /// <summary>
     /// PRIVATE VARIABLES
     /// </summary>
     private bool RisingSpeed = false;
+
+
     
     void Awake()
     {
@@ -71,6 +79,8 @@ public class PlayerController : MonoBehaviour
         EventBus.Subscribe<OnSwapInputEvent>(SwapToggle);
         
         EventBus.Subscribe<OnPlayerSlopeEvent>(OnSlope);
+        EventBus.Subscribe<OnPlayerGroundedEvent>(OnGrounded);
+        EventBus.Subscribe<OnPlayerAirborneEvent>(OnAirborne);
     }
 
     void OnDisable()
@@ -82,50 +92,34 @@ public class PlayerController : MonoBehaviour
         EventBus.Unsubscribe<OnSwapInputEvent>(SwapToggle);
         
         EventBus.Unsubscribe<OnPlayerSlopeEvent>(OnSlope);
+        EventBus.Unsubscribe<OnPlayerGroundedEvent>(OnGrounded);
+        EventBus.Unsubscribe<OnPlayerAirborneEvent>(OnAirborne);
     }
     private void Update()
     {
-        controller.Move(new Vector3(0, Gravity, 0) * Time.deltaTime); // add gravity
         SpeedController();
         CalculateCameraRelativeMovement();
         RotatePlayer();
         MovementController();
+        JumpHandler();
+        GravityHandler();
     }
 
+    private void OnGrounded(OnPlayerGroundedEvent ev)
+    {
+        grounded = true;
+    }
 
+    private void OnAirborne(OnPlayerAirborneEvent ev)
+    {
+        grounded = false;
+    }
 
     private void OnSlope(OnPlayerSlopeEvent ev)
     {
-        Quaternion targetRotation;
-
-        if (ev.SlopeNormal != Vector3.zero)
-        {
-            // Obtener la rotación actual en el plano Y (yaw)
-            Vector3 forward = transform.forward;
-            Vector3 forwardProjected = Vector3.ProjectOnPlane(forward, ev.SlopeNormal).normalized;
-        
-            // Si la proyección es muy pequeña, mantener el forward actual
-            if (forwardProjected.magnitude < 0.1f)
-            {
-                forwardProjected = Vector3.ProjectOnPlane(Vector3.forward, ev.SlopeNormal).normalized;
-            }
-        
-            // Crear rotación que mira en la dirección forward preservada con el up del slope
-            targetRotation = Quaternion.LookRotation(forwardProjected, ev.SlopeNormal);
-        }
-        else
-        {
-            // Volver a la rotación plana preservando el Y
-            Vector3 currentForward = Vector3.ProjectOnPlane(transform.forward, transform.up).normalized;
-            targetRotation = Quaternion.LookRotation(currentForward, transform.up);
-        }
-
-        // Suavizar la rotación
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSmoothSpeed);
-
         SlopeNormal = ev.SlopeNormal;
     }
-    
+
     private void CalculateCameraRelativeMovement()
     {
         // Solo actualizar la dirección objetivo cuando hay input
@@ -163,8 +157,7 @@ public class PlayerController : MonoBehaviour
     private void RotatePlayer()
     {
         // Solo rotar si hay una dirección de movimiento
-        if (moveDirection.magnitude > 0.1f)
-        {
+
             // Crear una rotación hacia la dirección de movimiento
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
             
@@ -176,27 +169,51 @@ public class PlayerController : MonoBehaviour
             // Interpolar suavemente hacia la rotación objetivo
             float rotationStep = currentRotationSpeed * Time.deltaTime;
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationStep);
-        }
+  
     }
 
     private void SpeedController()
     {
-        if (RisingSpeed)
+        if (grounded)
         {
-            if (currentSpeed > maxSpeed)
-                currentSpeed -= speedLose;
-            else if (currentSpeed < maxSpeed)
+            if (RisingSpeed)
             {
-                currentSpeed += speedGain;
-                currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                if (currentSpeed > maxSpeed)
+                    currentSpeed -= speedLose;
+                else if (currentSpeed < maxSpeed)
+                {
+                    currentSpeed += speedGain;
+                    currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                }
+            }
+            else
+            {
+                if (currentSpeed > minSpeed)
+                {
+                    currentSpeed -= speedLose;
+                    currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                }
             }
         }
         else
         {
-            if (currentSpeed > minSpeed)
+            if (RisingSpeed)
             {
-                currentSpeed -= speedLose;
-                currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                if (currentSpeed > maxSpeed)
+                    currentSpeed -= speedLose/AirDivider;
+                else if (currentSpeed < maxSpeed)
+                {
+                    currentSpeed += speedGain/AirDivider;
+                    currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                }
+            }
+            else
+            {
+                if (currentSpeed > minSpeed)
+                {
+                    currentSpeed -= speedLose/AirDivider;
+                    currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                }
             }
         }
     }
@@ -222,7 +239,7 @@ public class PlayerController : MonoBehaviour
             });
         }
         
-        if(SlopeNormal != Vector3.zero)
+        if(SlopeNormal != Vector3.zero && grounded)
             moveDirection = Vector3.ProjectOnPlane(moveDirection,SlopeNormal);
         
         controller.Move((moveDirection) * (currentSpeed * Time.deltaTime)); // Actually Move the character
@@ -262,4 +279,44 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void JumpHandler()
+    {
+        // Si está en el suelo y presiona salto
+        if (isJumping && grounded)
+        {
+            // Calcular velocidad de salto
+            float jumpSpeed = Mathf.Sqrt(jumpForce * -2f * Gravity);
+        
+            // Usar el SlopeNormal como dirección de salto
+            Vector3 jumpDirection = Vector3.up;
+            Vector3 jumpVelocity = jumpDirection * jumpSpeed;
+        
+            // Guardar velocidad vertical
+            verticalVelocity = jumpVelocity.y;
+        
+            // Guardar momentum horizontal del salto
+            jumpMomentum = new Vector3(jumpVelocity.x, 0, jumpVelocity.z);
+            currentSpeed += 3;
+        }
+    }
+
+    private void GravityHandler()
+    {
+        // Si está en el suelo, resetear velocidad vertical y momentum
+        if (grounded && verticalVelocity < 0)
+        {
+            verticalVelocity = -9.81f;
+            jumpMomentum = Vector3.zero; // Resetear momentum al aterrizar
+        }
+
+        // Aplicar gravedad cada frame
+        verticalVelocity += Gravity * Time.deltaTime;
+
+        // Mover verticalmente + momentum horizontal del salto
+        Vector3 verticalMovement = new Vector3(jumpMomentum.x, verticalVelocity, jumpMomentum.z);
+        controller.Move(verticalMovement * Time.deltaTime);
+    
+        // Decay del momentum (opcional, para que se disipe gradualmente)
+        jumpMomentum = Vector3.Lerp(jumpMomentum, Vector3.zero, 2f * Time.deltaTime);
+    }
 }

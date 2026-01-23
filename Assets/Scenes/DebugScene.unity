@@ -1896,13 +1896,15 @@ MonoBehaviour:
   speedGain: 0.3
   speedLose: 0.5
   maxSpeed: 8
+  AirDivider: 8
+  jumpForce: 8
   rotationSmoothSpeed: 8
   rotationSpeed: 720
   rotationSpeedWhenSlow: 360
   minimumSpeedToRotate: 0.1
   movementBlendSpeed: 8
   useArcMovement: 1
-  Gravity: -9.81
+  Gravity: -20
   isCrouching: 0
   isAction: 0
   isSwap: 0
@@ -1911,6 +1913,9 @@ MonoBehaviour:
   targetMoveDirection: {x: 0, y: 0, z: 0}
   inputDirection: {x: 0, y: 0}
   SlopeNormal: {x: 0, y: 0, z: 0}
+  verticalVelocity: 0
+  jumpMomentum: {x: 0, y: 0, z: 0}
+  grounded: 0
 --- !u!114 &1766794631
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1920,28 +1925,21 @@ MonoBehaviour:
   m_GameObject: {fileID: 1766794619}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da1eb619787e48bd93b89c2d734be712, type: 3}
+  m_Script: {fileID: 11500000, guid: 823d0f6bbb36dc140986d229d44283c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  centerOffset: {x: 0, y: -0.6, z: 0}
-  rayLength: 0.6
-  raySpacing: 0.3
-  groundMask:
+  DetectionLenght: 1.5
+  offset: {x: 0, y: -0.8, z: 0}
+  RaycastRadius: 0.45
+  player: {fileID: 1766794624}
+  layersToDetect:
+    serializedVersion: 2
     m_Bits: 127
-  commitAngle: 5
-  requiredStableFrames: 10
-  proximityBias: 1.5
-  lerpSpeed: 12
-  showGizmos: 1
-  debugAngle: 0
-  debugSurface: 
-  closestSurface: 
-  stableFrameCount: 0
-  lockedNormal: {x: 0, y: 1, z: 0}
-  displayNormal: {x: 0, y: 1, z: 0}
-  candidateNormal: {x: 0, y: 1, z: 0}
-  candidateSurface: 
-  stableFrames: 0
+  minDistanceToGround: 1.5
+  coyoteTime: 0.15
+  slopeNormal: {x: 0, y: 0, z: 0}
+  slopeAngle: 0
+  grounded: 0
 --- !u!1 &1890972299
 GameObject:
   m_ObjectHideFlags: 0
