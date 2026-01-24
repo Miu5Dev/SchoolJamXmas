@@ -1920,6 +1920,7 @@ MonoBehaviour:
   verticalVelocity: 0
   grounded: 0
   DirectionChanged: 0
+  isInHangTime: 0
 --- !u!114 &1766794631
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1962,20 +1963,34 @@ MonoBehaviour:
   dive: {fileID: 11400000, guid: 2212756828df3b64d9571fdf7d992f9d, type: 2}
   backflip: {fileID: 11400000, guid: 1d8ed9986b53d09418e3a78017799a2f, type: 2}
   longjump: {fileID: 11400000, guid: f4c3d3b47f716e14f8b087d144808fe9, type: 2}
+  groundPound: {fileID: 11400000, guid: 7820df881a478fa43b07b0d3899a9f06, type: 2}
+  groundPoundJump: {fileID: 11400000, guid: bff196231a6997545882cf78b1e02f4a, type: 2}
   delayBetweenJumps: 0.2
   jumpChainWindow: 0.4
   longjumpSpeedThreshold: 0.5
-  backflipInputThreshold: -0.7
+  groundPoundJumpWindow: 0.5
+  groundPoundForce: -50
+  backflipInputThreshold: -0.9
   currentJumpInChain: 0
   lastJumpTime: -1
   lastGroundedTime: -1
   lastDiveTime: -1
   isDiving: 0
+  isGroundPounding: 0
+  groundPoundStartTime: -1
+  canCancelGroundPound: 0
+  completedGroundPound: 0
+  groundPoundCompleteTime: -1
+  isInHangTime: 0
+  hangTimeStart: -1
+  currentHangDuration: 0
+  pendingJumpAfterHang: {fileID: 0}
   currentSpeed: 0
   grounded: 0
   isJumping: 0
   isAction: 0
   isCrouching: 0
+  crouchPressedInAir: 0
   inputDirection: {x: 0, y: 0}
 --- !u!1 &1890972299
 GameObject:

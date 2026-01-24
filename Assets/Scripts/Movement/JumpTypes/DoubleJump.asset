@@ -13,9 +13,14 @@ MonoBehaviour:
   m_Name: DoubleJump
   m_EditorClassIdentifier: 
   jumpType: 1
-  jumpForce: 2.2
+  jumpForce: 4
   extraSpeed: 6
+  hangTime: 0
   condition: 0
   customCooldown: 0
+  resetSpeedOnJump: 0
+  rotatePlayer: 0
+  rotationDegrees: 0
+  invertMovementDirection: 0
   uphillSpeedMultiplier: 0.4
   ignoreUphillPenalty: 0

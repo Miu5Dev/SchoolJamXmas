@@ -14,11 +14,30 @@ public class JumpTypeCreator : ScriptableObject
     [Tooltip("Speed on Jump")]
     public float extraSpeed = 5f;
     
+    [Header("Hang Time")] // NUEVO
+    [Tooltip("Flying time before executing jumpforce")]
+    public float hangTime = 0f;
+    
     [Header("Conditions")]
     public JumpCondition condition = JumpCondition.GroundedOnly;
     
     [Tooltip("Jump Cooldown (if 0 use default)")]
     public float customCooldown = 0f;
+    
+    [Header("Speed Control")] // NUEVO
+    [Tooltip("if this is true, the player speed is set 0 on this jump is executed")]
+    public bool resetSpeedOnJump = false;
+    
+    [Header("Rotation & Direction")] // NUEVO
+    [Tooltip("if true player gets rotated on executing the jump")]
+    public bool rotatePlayer = false;
+    
+    [Tooltip("Degrees to rate the player (looking back = 180)")]
+    public float rotationDegrees = 0f;
+    
+    [Tooltip("if true, also inverts the push direction")]
+    public bool invertMovementDirection = false;
+
     
     [Header("Advanced")]
     [Tooltip("Uphill speed multiplier")]

@@ -12,10 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20e84e968da9e844ab388e4d776edd51, type: 3}
   m_Name: Dive
   m_EditorClassIdentifier: 
-  jumpType: 0
+  jumpType: 6
   jumpForce: 0
   extraSpeed: 25
+  hangTime: 0
   condition: 1
   customCooldown: 0.5
+  resetSpeedOnJump: 0
+  rotatePlayer: 0
+  rotationDegrees: 0
+  invertMovementDirection: 0
   uphillSpeedMultiplier: 1
-  ignoreUphillPenalty: 1
+  ignoreUphillPenalty: 0

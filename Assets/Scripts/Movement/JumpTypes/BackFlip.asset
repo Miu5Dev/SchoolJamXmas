@@ -13,9 +13,14 @@ MonoBehaviour:
   m_Name: BackFlip
   m_EditorClassIdentifier: 
   jumpType: 4
-  jumpForce: 2.8
+  jumpForce: 8
   extraSpeed: 0
+  hangTime: 0.1
   condition: 0
   customCooldown: 0.3
+  resetSpeedOnJump: 0
+  rotatePlayer: 1
+  rotationDegrees: 180
+  invertMovementDirection: 1
   uphillSpeedMultiplier: 0.2
   ignoreUphillPenalty: 1

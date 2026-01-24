@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
@@ -56,6 +57,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] public float verticalVelocity = 0f;
     [SerializeField] private bool grounded = false;
     [SerializeField] private bool DirectionChanged = false; // NUEVO
+    [SerializeField] private bool isInHangTime = false; // NUEVO
+
+    
 
     /// <summary>
     /// PRIVATE VARIABLES
@@ -87,6 +91,10 @@ public class PlayerController : MonoBehaviour
         EventBus.Subscribe<OnPlayerGroundedEvent>(OnGrounded);
         EventBus.Subscribe<OnPlayerAirborneEvent>(OnAirborne);
         EventBus.Subscribe<OnExecuteJumpCommand>(OnExecuteJumpCommand); // NUEVO
+        EventBus.Subscribe<OnApplyJumpForceCommand>(OnApplyJumpForce); // NUEV
+        EventBus.Subscribe<OnSetHangTimeState>(OnSetHangTimeState); // NUEVO
+        EventBus.Subscribe<OnRotatePlayerCommand>(OnRotatePlayer); // NUEVO
+
     }
 
     void OnDisable()
@@ -101,7 +109,31 @@ public class PlayerController : MonoBehaviour
         EventBus.Unsubscribe<OnPlayerGroundedEvent>(OnGrounded);
         EventBus.Unsubscribe<OnPlayerAirborneEvent>(OnAirborne);
         EventBus.Unsubscribe<OnExecuteJumpCommand>(OnExecuteJumpCommand); // NUEVO
+        EventBus.Unsubscribe<OnApplyJumpForceCommand>(OnApplyJumpForce); // NUEVO
+        EventBus.Unsubscribe<OnSetHangTimeState>(OnSetHangTimeState); // NUEVO
+        EventBus.Unsubscribe<OnRotatePlayerCommand>(OnRotatePlayer); // NUEVO
 
+    }
+    
+    private void OnRotatePlayer(OnRotatePlayerCommand cmd) // NUEVO
+    {
+        // Si debe invertir la dirección del movimiento
+        if (cmd.InvertMovementDirection)
+        {
+            // Invertir moveDirection y targetMoveDirection
+            moveDirection = -moveDirection;
+            targetMoveDirection = -targetMoveDirection;
+        }
+    }
+    
+    private void OnSetHangTimeState(OnSetHangTimeState state) // NUEVO
+    {
+        isInHangTime = state.IsInHangTime;
+    }
+    
+    private void OnApplyJumpForce(OnApplyJumpForceCommand cmd) // NUEVO
+    {
+        verticalVelocity = cmd.Force;
     }
     
     private void OnExecuteJumpCommand(OnExecuteJumpCommand cmd)
@@ -200,10 +232,6 @@ public class PlayerController : MonoBehaviour
     }
     private void RotatePlayer()
     {
-        // Solo rotar si hay una dirección de movimiento
-        if (moveDirection.magnitude > 0.1f)
-        {
-
             // Crear una rotación hacia la dirección de movimiento
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
 
@@ -217,7 +245,6 @@ public class PlayerController : MonoBehaviour
             // Interpolar suavemente hacia la rotación objetivo
             float rotationStep = currentRotationSpeed * Time.deltaTime;
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationStep);
-        }
     }
 
     private void SpeedController()
@@ -339,12 +366,33 @@ public class PlayerController : MonoBehaviour
         }
     }
     
-    public void ExecuteJump(JumpTypeCreator jumpType)
+    private void ExecuteJump(JumpTypeCreator jumpType)
     {
-        // Calcular velocidad de salto
-        float jumpSpeed = Mathf.Sqrt(jumpType.jumpForce * -2f * Gravity);
+        float jumpSpeed;
         
-        // Detectar si está en un slope
+        // NUEVO: Resetear velocidad si el salto lo requiere
+        if (jumpType.resetSpeedOnJump)
+        {
+            currentSpeed = 0f;
+        }
+        
+        // Si tiene hang time, iniciar con velocidad 0
+        if (jumpType.hangTime > 0f)
+        {
+            jumpSpeed = 0f;
+        }
+        // Saltos hacia abajo sin hang time
+        else if (jumpType.jumpForce <= 0)
+        {
+            jumpSpeed = jumpType.jumpForce * 10f;
+        }
+        // Saltos normales
+        else
+        {
+            jumpSpeed = Mathf.Sqrt(jumpType.jumpForce * -2f * Gravity);
+        }
+        
+        // Detectar slope
         if (SlopeNormal != Vector3.zero && SlopeNormal != Vector3.up && !jumpType.ignoreUphillPenalty)
         {
             Vector3 slopeUpDirection = Vector3.ProjectOnPlane(Vector3.up, SlopeNormal).normalized;
@@ -368,14 +416,6 @@ public class PlayerController : MonoBehaviour
             currentSpeed += jumpType.extraSpeed;
         }
         
-        EventBus.Raise<OnPlayerJumpEvent>(new OnPlayerJumpEvent()
-        {
-            Player = this.gameObject,
-            accelerationMultiplier = jumpType.extraSpeed,
-            JumpType = jumpType.jumpType,
-            JumpForce = jumpType.jumpForce,
-        });
-        
         lastJumpTime = Time.time;
         grounded = false;
     }
@@ -383,18 +423,18 @@ public class PlayerController : MonoBehaviour
     private void GravityHandler()
     {
         bool canLand = Time.time > lastJumpTime + jumpCooldown;
-    
+        
         if (grounded && verticalVelocity < 0 && canLand)
         {
             verticalVelocity = Mathf.Clamp(verticalVelocity, -9.81f, 1000);
         }
-    
-        // Solo aplicar gravedad si NO acabas de saltar O si ya pasó tiempo suficiente
-        if (Time.time > lastJumpTime + 0.05f) // Pequeño delay para dar fuerza al salto
+        
+        // CAMBIO: Solo aplicar gravedad si NO está en hang time
+        if (Time.time > lastJumpTime + 0.05f && !isInHangTime)
         {
             verticalVelocity += Gravity * Time.deltaTime;
         }
-    
+        
         Vector3 verticalMovement = new Vector3(0, verticalVelocity, 0);
         controller.Move(verticalMovement * Time.deltaTime);
     }

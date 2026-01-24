@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 20e84e968da9e844ab388e4d776edd51, type: 3}
-  m_Name: TripleJump
+  m_Name: GroundPound
   m_EditorClassIdentifier: 
-  jumpType: 2
-  jumpForce: 6
-  extraSpeed: 8
-  hangTime: 0
-  condition: 0
+  jumpType: 6
+  jumpForce: 0
+  extraSpeed: 0
+  hangTime: 0.3
+  condition: 1
   customCooldown: 0
-  resetSpeedOnJump: 0
+  resetSpeedOnJump: 1
   rotatePlayer: 0
   rotationDegrees: 0
   invertMovementDirection: 0
-  uphillSpeedMultiplier: 0.5
-  ignoreUphillPenalty: 0
+  uphillSpeedMultiplier: 1
+  ignoreUphillPenalty: 1

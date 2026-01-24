@@ -94,9 +94,25 @@ public class OnExecuteJumpCommand : PlayerEventBase
     public JumpTypeCreator JumpType;
 }
 
+public class OnApplyJumpForceCommand : PlayerEventBase
+{
+    public float Force; // Fuerza vertical a aplicar
+}
+
 public class OnPlayerGroundedEvent : PlayerEventBase
 {
     public bool IsGrounded;
+}
+
+public class OnSetHangTimeState : PlayerEventBase
+{
+    public bool IsInHangTime;
+}
+
+public class OnRotatePlayerCommand : PlayerEventBase
+{
+    public float Degrees; // Grados a rotar (180 para backflip)
+    public bool InvertMovementDirection; // Si debe invertir la dirección del movimiento
 }
 
 public class OnPlayerAirborneEvent : PlayerEventBase
@@ -211,10 +227,9 @@ public enum JumpType
     Triple,
     Long,
     Backflip,
-    SlopeJump,
     GroundPoundJump,
-    LedgeJump,
-    CrouchJump
+    GroundPound,
+    Dive,
 }
 
 public enum PlayerState
