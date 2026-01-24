@@ -1776,6 +1776,7 @@ GameObject:
   - component: {fileID: 1766794630}
   - component: {fileID: 1766794629}
   - component: {fileID: 1766794631}
+  - component: {fileID: 1766794632}
   m_Layer: 7
   m_Name: Capsule
   m_TagString: Untagged
@@ -1897,13 +1898,16 @@ MonoBehaviour:
   speedLose: 0.5
   maxSpeed: 8
   AirDivider: 8
-  jumpForce: 8
+  jumpCooldown: 0.2
+  noSlopeProjectionTime: 0.15
   rotationSmoothSpeed: 8
   rotationSpeed: 720
   rotationSpeedWhenSlow: 360
   minimumSpeedToRotate: 0.1
   movementBlendSpeed: 8
   useArcMovement: 1
+  directionChangePenalty: 0.5
+  directionChangeThreshold: 90
   Gravity: -20
   isCrouching: 0
   isAction: 0
@@ -1914,8 +1918,8 @@ MonoBehaviour:
   inputDirection: {x: 0, y: 0}
   SlopeNormal: {x: 0, y: 0, z: 0}
   verticalVelocity: 0
-  jumpMomentum: {x: 0, y: 0, z: 0}
   grounded: 0
+  DirectionChanged: 0
 --- !u!114 &1766794631
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1935,11 +1939,44 @@ MonoBehaviour:
   layersToDetect:
     serializedVersion: 2
     m_Bits: 127
-  minDistanceToGround: 1.5
+  minDistanceToGround: 0.5
   coyoteTime: 0.15
   slopeNormal: {x: 0, y: 0, z: 0}
   slopeAngle: 0
   grounded: 0
+--- !u!114 &1766794632
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1766794619}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25c7fa96644ddcf46925f2f7ff96488d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  normalJump: {fileID: 11400000, guid: 626a6c1e4b7750441bf581f3cbbb83e8, type: 2}
+  doubleJump: {fileID: 11400000, guid: ddcdf1158b715a64b9943cc7c296b152, type: 2}
+  tripleJump: {fileID: 11400000, guid: 1c0b3329e6fb1cd428483956d296c632, type: 2}
+  dive: {fileID: 11400000, guid: 2212756828df3b64d9571fdf7d992f9d, type: 2}
+  backflip: {fileID: 11400000, guid: 1d8ed9986b53d09418e3a78017799a2f, type: 2}
+  longjump: {fileID: 11400000, guid: f4c3d3b47f716e14f8b087d144808fe9, type: 2}
+  delayBetweenJumps: 0.2
+  jumpChainWindow: 0.4
+  longjumpSpeedThreshold: 0.5
+  backflipInputThreshold: -0.7
+  currentJumpInChain: 0
+  lastJumpTime: -1
+  lastGroundedTime: -1
+  lastDiveTime: -1
+  isDiving: 0
+  currentSpeed: 0
+  grounded: 0
+  isJumping: 0
+  isAction: 0
+  isCrouching: 0
+  inputDirection: {x: 0, y: 0}
 --- !u!1 &1890972299
 GameObject:
   m_ObjectHideFlags: 0

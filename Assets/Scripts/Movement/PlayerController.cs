@@ -21,7 +21,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float AirDivider = 8f;
     
     [Header("Jump Values")]
-    [SerializeField] private float jumpForce = 10.0f;
+    [SerializeField] private float jumpCooldown = 0.2f; // Tiempo antes de poder detectar grounded otra vez
+    [SerializeField] private float noSlopeProjectionTime = 0.15f; // Tiempo sin proyección después de saltar
     
     [Header("On Slope Movement Rotation Settings")]
     [SerializeField] private float rotationSmoothSpeed = 8f;
@@ -34,6 +35,9 @@ public class PlayerController : MonoBehaviour
     [Header("Movement Style")]
     [SerializeField] private float movementBlendSpeed = 8f; // Qué tan rápido se adapta la dirección de movimiento
     [SerializeField] private bool useArcMovement = true; // Si false, movimiento más directo
+    [SerializeField] private float directionChangePenalty = 0.5f; // Cuánto reduces velocidad al cambiar de dirección (0-1)
+    [SerializeField] private float directionChangeThreshold = 90f; // Ángulo mínimo para considerar "cambio de dirección"
+
     
     [Header("Gravity Values")]
     [SerializeField] private float Gravity = -9.81f;
@@ -50,13 +54,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Vector2 inputDirection = Vector2.zero;
     [SerializeField] private Vector3 SlopeNormal = Vector3.zero;
     [SerializeField] public float verticalVelocity = 0f;
-    [SerializeField] private Vector3 jumpMomentum = Vector3.zero; // NUEVA VARIABLE
     [SerializeField] private bool grounded = false;
+    [SerializeField] private bool DirectionChanged = false; // NUEVO
+
     /// <summary>
     /// PRIVATE VARIABLES
     /// </summary>
     private bool RisingSpeed = false;
-
+    private float lastJumpTime = -1f; // Cuando saltó por última vez
 
     
     void Awake()
@@ -81,6 +86,7 @@ public class PlayerController : MonoBehaviour
         EventBus.Subscribe<OnPlayerSlopeEvent>(OnSlope);
         EventBus.Subscribe<OnPlayerGroundedEvent>(OnGrounded);
         EventBus.Subscribe<OnPlayerAirborneEvent>(OnAirborne);
+        EventBus.Subscribe<OnExecuteJumpCommand>(OnExecuteJumpCommand); // NUEVO
     }
 
     void OnDisable()
@@ -94,14 +100,21 @@ public class PlayerController : MonoBehaviour
         EventBus.Unsubscribe<OnPlayerSlopeEvent>(OnSlope);
         EventBus.Unsubscribe<OnPlayerGroundedEvent>(OnGrounded);
         EventBus.Unsubscribe<OnPlayerAirborneEvent>(OnAirborne);
+        EventBus.Unsubscribe<OnExecuteJumpCommand>(OnExecuteJumpCommand); // NUEVO
+
     }
+    
+    private void OnExecuteJumpCommand(OnExecuteJumpCommand cmd)
+    {
+        ExecuteJump(cmd.JumpType);
+    }
+    
     private void Update()
     {
         SpeedController();
         CalculateCameraRelativeMovement();
         RotatePlayer();
         MovementController();
-        JumpHandler();
         GravityHandler();
     }
 
@@ -122,6 +135,9 @@ public class PlayerController : MonoBehaviour
 
     private void CalculateCameraRelativeMovement()
     {
+        // IMPORTANTE: Reset del flag al inicio del frame
+        DirectionChanged = false;
+        
         // Solo actualizar la dirección objetivo cuando hay input
         if (inputDirection.magnitude > 0.1f)
         {
@@ -138,38 +154,70 @@ public class PlayerController : MonoBehaviour
             // Calcular dirección objetivo relativa a la cámara
             targetMoveDirection = (cameraForward * inputDirection.y + cameraRight * inputDirection.x);
             targetMoveDirection.Normalize();
+            
+            // CAMBIO: Solo detectar cambio si realmente estás moviéndote con velocidad significativa
+            if (moveDirection.magnitude > 0.1f && targetMoveDirection.magnitude > 0.1f && currentSpeed > minSpeed + 0.5f)
+            {
+                float angleChange = Vector3.Angle(moveDirection, targetMoveDirection);
+                
+                // Si el cambio de ángulo es significativo, reducir velocidad
+                if (angleChange > directionChangeThreshold)
+                {
+                    DirectionChanged = true;
+                    
+                    // Cuanto mayor el ángulo, mayor la penalización
+                    float penaltyFactor = Mathf.InverseLerp(directionChangeThreshold, 180f, angleChange);
+                    
+                    // Enviar evento
+                    EventBus.Raise<OnDirectionChangeEvent>(new OnDirectionChangeEvent()
+                    {
+                        Player = this.gameObject,
+                        AngleChange = angleChange,
+                        OldDirection = moveDirection,
+                        NewDirection = targetMoveDirection,
+                        PenaltyFactor = penaltyFactor
+                    });
+                    
+                    currentSpeed *= Mathf.Lerp(1f, directionChangePenalty, penaltyFactor);
+                    currentSpeed = Mathf.Max(currentSpeed, minSpeed);
+                }
+            }
+            
+            // Solo hacer blend cuando HAY input
+            if (useArcMovement && moveDirection.magnitude > 0.01f)
+            {
+                // Cuando hay momentum, hacer blend suave
+                moveDirection = Vector3.Lerp(moveDirection, targetMoveDirection, movementBlendSpeed * Time.deltaTime);
+                moveDirection.Normalize();
+            }
+            else
+            {
+                // Sin momentum, usar dirección directa
+                moveDirection = targetMoveDirection;
+            }
         }
-        
-        // Blend suave hacia la dirección objetivo (esto da la sensación de curvas amplias)
-        if (useArcMovement && moveDirection.magnitude > 0.01f)
-        {
-            // Cuando hay momentum, hacer blend suave (esto crea las curvas amplias)
-            moveDirection = Vector3.Lerp(moveDirection, targetMoveDirection, movementBlendSpeed * Time.deltaTime);
-            moveDirection.Normalize();
-        }
-        else if (targetMoveDirection.magnitude > 0.1f)
-        {
-            // Sin momentum o movimiento desactivado, usar dirección directa
-            moveDirection = targetMoveDirection;
-        }
+        // Si no hay input, moveDirection se mantiene como está
     }
-
     private void RotatePlayer()
     {
         // Solo rotar si hay una dirección de movimiento
+        if (moveDirection.magnitude > 0.1f)
+        {
 
             // Crear una rotación hacia la dirección de movimiento
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
-            
+
             // Determinar velocidad de rotación basada en la velocidad actual
-            // Más rápido = rotación más rápida (como Mario Odyssey)
-            float speedFactor = Mathf.Clamp01(currentSpeed / maxSpeed);
+            // Usar InverseLerp para normalizar correctamente incluso con momentum
+            float speedFactor = Mathf.InverseLerp(0f, maxSpeed, currentSpeed);
+            speedFactor = Mathf.Clamp01(speedFactor); // Opcional: limitar a 1.0 máximo
+
             float currentRotationSpeed = Mathf.Lerp(rotationSpeedWhenSlow, rotationSpeed, speedFactor);
-            
+
             // Interpolar suavemente hacia la rotación objetivo
             float rotationStep = currentRotationSpeed * Time.deltaTime;
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationStep);
-  
+        }
     }
 
     private void SpeedController()
@@ -191,16 +239,20 @@ public class PlayerController : MonoBehaviour
                 if (currentSpeed > minSpeed)
                 {
                     currentSpeed -= speedLose;
-                    currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                    // CAMBIO: Solo clampear si ya estás dentro del rango normal
+                    if (currentSpeed <= maxSpeed)
+                    {
+                        currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                    }
                 }
             }
         }
-        else
+        else //if airborne
         {
             if (RisingSpeed)
             {
                 if (currentSpeed > maxSpeed)
-                    currentSpeed -= speedLose/AirDivider;
+                    currentSpeed -= speedLose;
                 else if (currentSpeed < maxSpeed)
                 {
                     currentSpeed += speedGain/AirDivider;
@@ -211,8 +263,12 @@ public class PlayerController : MonoBehaviour
             {
                 if (currentSpeed > minSpeed)
                 {
-                    currentSpeed -= speedLose/AirDivider;
-                    currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                    currentSpeed -= speedLose;
+                    // CAMBIO: Solo clampear si ya estás dentro del rango normal
+                    if (currentSpeed <= maxSpeed)
+                    {
+                        currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                    }
                 }
             }
         }
@@ -220,7 +276,6 @@ public class PlayerController : MonoBehaviour
 
     private void MovementController()
     {
-        // do the actual moving
         if (moveDirection.magnitude > 0.1)
         {
             EventBus.Raise<OnPlayerMoveEvent>(new OnPlayerMoveEvent()
@@ -238,11 +293,16 @@ public class PlayerController : MonoBehaviour
                 Player = this.gameObject
             });
         }
-        
-        if(SlopeNormal != Vector3.zero && grounded)
-            moveDirection = Vector3.ProjectOnPlane(moveDirection,SlopeNormal);
-        
-        controller.Move((moveDirection) * (currentSpeed * Time.deltaTime)); // Actually Move the character
+    
+        Vector3 finalMoveDirection = moveDirection;
+    
+        // CAMBIO: No proyectar sobre slope justo después de saltar
+        bool recentlyJumped = Time.time < lastJumpTime + noSlopeProjectionTime;
+    
+        if(SlopeNormal != Vector3.zero && moveDirection.magnitude > 0.1 && grounded && !recentlyJumped)
+            finalMoveDirection = Vector3.ProjectOnPlane(moveDirection, SlopeNormal);
+    
+        controller.Move(finalMoveDirection * (currentSpeed * Time.deltaTime));
     }
 
     private void JumpToggle(OnJumpInputEvent e)
@@ -278,45 +338,64 @@ public class PlayerController : MonoBehaviour
             RisingSpeed = false;
         }
     }
-
-    private void JumpHandler()
+    
+    public void ExecuteJump(JumpTypeCreator jumpType)
     {
-        // Si está en el suelo y presiona salto
-        if (isJumping && grounded)
+        // Calcular velocidad de salto
+        float jumpSpeed = Mathf.Sqrt(jumpType.jumpForce * -2f * Gravity);
+        
+        // Detectar si está en un slope
+        if (SlopeNormal != Vector3.zero && SlopeNormal != Vector3.up && !jumpType.ignoreUphillPenalty)
         {
-            // Calcular velocidad de salto
-            float jumpSpeed = Mathf.Sqrt(jumpForce * -2f * Gravity);
-        
-            // Usar el SlopeNormal como dirección de salto
-            Vector3 jumpDirection = Vector3.up;
-            Vector3 jumpVelocity = jumpDirection * jumpSpeed;
-        
-            // Guardar velocidad vertical
-            verticalVelocity = jumpVelocity.y;
-        
-            // Guardar momentum horizontal del salto
-            jumpMomentum = new Vector3(jumpVelocity.x, 0, jumpVelocity.z);
-            currentSpeed += 3;
+            Vector3 slopeUpDirection = Vector3.ProjectOnPlane(Vector3.up, SlopeNormal).normalized;
+            float upwardMovement = Vector3.Dot(moveDirection, slopeUpDirection);
+            bool isGoingUphill = upwardMovement > 0.5f;
+            
+            verticalVelocity = jumpSpeed;
+            
+            if (isGoingUphill)
+            {
+                currentSpeed = Mathf.Min(currentSpeed * jumpType.uphillSpeedMultiplier, maxSpeed);
+            }
+            else
+            {
+                currentSpeed += jumpType.extraSpeed;
+            }
         }
+        else
+        {
+            verticalVelocity = jumpSpeed;
+            currentSpeed += jumpType.extraSpeed;
+        }
+        
+        EventBus.Raise<OnPlayerJumpEvent>(new OnPlayerJumpEvent()
+        {
+            Player = this.gameObject,
+            accelerationMultiplier = jumpType.extraSpeed,
+            JumpType = jumpType.jumpType,
+            JumpForce = jumpType.jumpForce,
+        });
+        
+        lastJumpTime = Time.time;
+        grounded = false;
     }
 
     private void GravityHandler()
     {
-        // Si está en el suelo, resetear velocidad vertical y momentum
-        if (grounded && verticalVelocity < 0)
-        {
-            verticalVelocity = -9.81f;
-            jumpMomentum = Vector3.zero; // Resetear momentum al aterrizar
-        }
-
-        // Aplicar gravedad cada frame
-        verticalVelocity += Gravity * Time.deltaTime;
-
-        // Mover verticalmente + momentum horizontal del salto
-        Vector3 verticalMovement = new Vector3(jumpMomentum.x, verticalVelocity, jumpMomentum.z);
-        controller.Move(verticalMovement * Time.deltaTime);
+        bool canLand = Time.time > lastJumpTime + jumpCooldown;
     
-        // Decay del momentum (opcional, para que se disipe gradualmente)
-        jumpMomentum = Vector3.Lerp(jumpMomentum, Vector3.zero, 2f * Time.deltaTime);
+        if (grounded && verticalVelocity < 0 && canLand)
+        {
+            verticalVelocity = Mathf.Clamp(verticalVelocity, -9.81f, 1000);
+        }
+    
+        // Solo aplicar gravedad si NO acabas de saltar O si ya pasó tiempo suficiente
+        if (Time.time > lastJumpTime + 0.05f) // Pequeño delay para dar fuerza al salto
+        {
+            verticalVelocity += Gravity * Time.deltaTime;
+        }
+    
+        Vector3 verticalMovement = new Vector3(0, verticalVelocity, 0);
+        controller.Move(verticalMovement * Time.deltaTime);
     }
 }

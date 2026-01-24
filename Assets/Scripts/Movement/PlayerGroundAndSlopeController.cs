@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(PlayerController))]
 public class PlayerGroundAndSlopeController : MonoBehaviour
 {
     [Header("Detectors Config")]
@@ -27,16 +28,10 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
     private float DefaultDetectionLenght;
     private float DefaultMinDistanceToGround;
 
-    private GameObject Player;
-
-
     public void Awake()
     {
         player = this.transform;
         
-        if(Player == null)
-        EventBus.Subscribe<OnPlayerMoveEvent>(@event => Player = @event.Player);
-
         DefaultDetectionLenght = DetectionLenght;
         DefaultMinDistanceToGround = minDistanceToGround;
     }

@@ -61,10 +61,13 @@ public class OnPlayerStopEvent : PlayerEventBase
 {
 }
 
-
-public class OnPlayerAccelerationChangeEvent : PlayerEventBase
+public class OnDirectionChangeEvent
 {
-    public float acceleration;
+    public GameObject Player;
+    public float AngleChange; // Cuántos grados cambió
+    public Vector3 OldDirection; // Dirección anterior
+    public Vector3 NewDirection; // Nueva dirección
+    public float PenaltyFactor; // 0-1, qué tanto se penalizó
 }
 
 // ============================================================================
@@ -74,7 +77,6 @@ public class OnPlayerAccelerationChangeEvent : PlayerEventBase
 public class OnPlayerJumpEvent : PlayerEventBase
 {
     public JumpType JumpType;
-    public int JumpCount;
     public float JumpForce;
 
     public float accelerationMultiplier;
@@ -85,6 +87,11 @@ public class OnPlayerLandEvent : PlayerEventBase
     public float YHeight;
     public bool HardLanding;
     public bool FromGroundPound;
+}
+
+public class OnExecuteJumpCommand : PlayerEventBase
+{
+    public JumpTypeCreator JumpType;
 }
 
 public class OnPlayerGroundedEvent : PlayerEventBase
