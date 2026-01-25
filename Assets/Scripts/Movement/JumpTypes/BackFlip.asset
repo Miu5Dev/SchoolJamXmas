@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BackFlip
   m_EditorClassIdentifier: 
   jumpType: 4
-  jumpForce: 8
+  jumpForce: 12
   extraSpeed: 0
   hangTime: 0.1
   condition: 0

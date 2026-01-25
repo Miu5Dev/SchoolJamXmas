@@ -23,6 +23,7 @@ public class JumpController : MonoBehaviour
     
     [Header("Input Detection")]
     public float backflipInputThreshold = -0.7f;
+    public float backflipDirectionChangeAngle = 120f; // Ángulo mínimo para considerar dirección opuesta
     
     [Header("Debug")]
     [SerializeField] private int currentJumpInChain = 0;
@@ -47,8 +48,14 @@ public class JumpController : MonoBehaviour
     [SerializeField] private bool isJumping = false;
     [SerializeField] private bool isAction = false;
     [SerializeField] private bool isCrouching = false;
-    [SerializeField] private bool crouchPressedInAir = false; // NUEVO
+    [SerializeField] private bool crouchPressedInAir = false;
     [SerializeField] private Vector2 inputDirection = Vector2.zero;
+    
+    [SerializeField] private Vector3 currentMoveDirection3D = Vector3.zero;
+    [SerializeField] private Quaternion currentPlayerRotation = Quaternion.identity;
+    [SerializeField] private bool recentSharpTurn = false;
+    [SerializeField] private float sharpTurnTime = -1f;
+    [SerializeField] private float sharpTurnAngle = 0f;
     
     void OnEnable()
     {
@@ -60,6 +67,7 @@ public class JumpController : MonoBehaviour
         EventBus.Subscribe<OnCrouchInputEvent>(OnCrouchInput);
         EventBus.Subscribe<OnPlayerMoveEvent>(OnPlayerMove);
         EventBus.Subscribe<OnPlayerLandEvent>(OnPlayerLand);
+        EventBus.Subscribe<OnDirectionChangeEvent>(OnDirectionChange);
     }
     
     void OnDisable()
@@ -72,6 +80,7 @@ public class JumpController : MonoBehaviour
         EventBus.Unsubscribe<OnCrouchInputEvent>(OnCrouchInput);
         EventBus.Unsubscribe<OnPlayerMoveEvent>(OnPlayerMove);
         EventBus.Unsubscribe<OnPlayerLandEvent>(OnPlayerLand);
+        EventBus.Unsubscribe<OnDirectionChangeEvent>(OnDirectionChange);
     }
     
     private void OnGrounded(OnPlayerGroundedEvent ev)
@@ -81,7 +90,7 @@ public class JumpController : MonoBehaviour
         {
             lastGroundedTime = Time.time;
             isDiving = false;
-            crouchPressedInAir = false; // NUEVO - Resetear al tocar el suelo
+            crouchPressedInAir = false;
             
             // Resetear ground pound al tocar el suelo
             if (isGroundPounding)
@@ -151,7 +160,7 @@ public class JumpController : MonoBehaviour
         bool wasCrouching = isCrouching;
         isCrouching = e.pressed;
         
-        // NUEVO: Detectar si presionó crouch mientras está en el aire
+        // Detectar si presionó crouch mientras está en el aire
         if (isCrouching && !wasCrouching && !grounded)
         {
             crouchPressedInAir = true;
@@ -172,6 +181,23 @@ public class JumpController : MonoBehaviour
     private void OnPlayerMove(OnPlayerMoveEvent e)
     {
         currentSpeed = e.speed;
+        
+        // Convertir Direction (Vector2) a Vector3
+        currentMoveDirection3D = new Vector3(e.Direction.x, 0, e.Direction.y);
+        
+        // Guardar rotación del jugador
+        currentPlayerRotation = e.Rotation;
+    }
+    
+    private void OnDirectionChange(OnDirectionChangeEvent ev)
+    {
+        // Detectar giros bruscos (cambios de dirección grandes)
+        if (ev.AngleChange > backflipDirectionChangeAngle)
+        {
+            recentSharpTurn = true;
+            sharpTurnTime = Time.time;
+            sharpTurnAngle = ev.AngleChange;
+        }
     }
     
     void Update()
@@ -191,6 +217,12 @@ public class JumpController : MonoBehaviour
         if (completedGroundPound && Time.time > groundPoundCompleteTime + groundPoundJumpWindow)
         {
             completedGroundPound = false;
+        }
+        
+        // Resetear sharp turn window
+        if (recentSharpTurn && Time.time > sharpTurnTime + 0.3f)
+        {
+            recentSharpTurn = false;
         }
     }
     
@@ -235,7 +267,7 @@ public class JumpController : MonoBehaviour
     
     private void HandleGroundPound()
     {
-        // CAMBIO: Solo permitir ground pound si presionó crouch ESTANDO en el aire
+        // Solo permitir ground pound si presionó crouch ESTANDO en el aire
         if (crouchPressedInAir && !grounded && !isGroundPounding && !isDiving && groundPound != null)
         {
             if (RequestJump(groundPound))
@@ -244,7 +276,7 @@ public class JumpController : MonoBehaviour
                 groundPoundStartTime = Time.time;
                 canCancelGroundPound = true;
                 currentJumpInChain = 0;
-                crouchPressedInAir = false; // NUEVO - Consumir el input
+                crouchPressedInAir = false;
                 
                 EventBus.Raise<OnPlayerGroundPoundEvent>(new OnPlayerGroundPoundEvent()
                 {
@@ -320,7 +352,7 @@ public class JumpController : MonoBehaviour
             currentJumpInChain = 0;
         }
         
-        // PRIORIDAD 1: LONGJUMP o BACKFLIP
+        // PRIORIDAD 1: LONGJUMP o BACKFLIP (cuando está agachado)
         else if (grounded && isCrouching)
         {
             if (currentSpeed > longjumpSpeedThreshold && longjump != null)
@@ -334,11 +366,15 @@ public class JumpController : MonoBehaviour
                 currentJumpInChain = 0;
             }
         }
-        // PRIORIDAD 2: BACKFLIP
-        else if (grounded && inputDirection.y < backflipInputThreshold && backflip != null)
+        // PRIORIDAD 2: BACKFLIP (cuando corre en dirección opuesta)
+        else if (grounded && backflip != null)
         {
-            jumpToExecute = backflip;
-            currentJumpInChain = 0;
+            if (IsInputOppositeToPlayerDirection())
+            {
+                jumpToExecute = backflip;
+                currentJumpInChain = 0;
+                recentSharpTurn = false; // Consumir el flag
+            }
         }
         
         // PRIORIDAD 3: Combo de saltos normales
@@ -388,10 +424,43 @@ public class JumpController : MonoBehaviour
         }
     }
     
+    private bool IsInputOppositeToPlayerDirection()
+    {
+        // Si no hay input suficiente, no es backflip
+        if (inputDirection.magnitude < 0.8f) return false;
+        
+        // MÉTODO 1: Detectar giro brusco reciente (> 120°)
+        // Esto funciona para cualquier dirección - izquierda/derecha, adelante/atrás, diagonal
+        if (recentSharpTurn && Time.time < sharpTurnTime + 0.3f)
+        {
+            return true;
+        }
+        
+        // MÉTODO 2: Fallback para cuando no hay movimiento previo
+        // Comparar input con la dirección actual del jugador
+        if (currentMoveDirection3D.magnitude > 0.1f)
+        {
+            // Extraer forward del jugador
+            Vector3 playerForward = currentPlayerRotation * Vector3.forward;
+            
+            // Comparar dirección de movimiento actual con forward del jugador
+            float dotProduct = Vector3.Dot(currentMoveDirection3D.normalized, playerForward.normalized);
+            
+            // Si el ángulo es > 120° (dot < -0.5), está corriendo hacia atrás
+            if (dotProduct < -0.5f)
+            {
+                return true;
+            }
+        }
+        
+        // MÉTODO 3: Fallback final - input hacia atrás de la cámara
+        return inputDirection.y < backflipInputThreshold;
+    }
+    
     private bool RequestJump(JumpTypeCreator jumpType)
     {
         if (jumpType == null) return false;
-    
+        
         // Validar condiciones
         switch (jumpType.condition)
         {
@@ -404,8 +473,8 @@ public class JumpController : MonoBehaviour
             case JumpCondition.Both:
                 break;
         }
-    
-        // NUEVO: Si el salto requiere rotación, emitir evento
+        
+        // Si el salto requiere rotación, emitir evento
         if (jumpType.rotatePlayer)
         {
             EventBus.Raise<OnRotatePlayerCommand>(new OnRotatePlayerCommand()
@@ -415,7 +484,7 @@ public class JumpController : MonoBehaviour
                 InvertMovementDirection = jumpType.invertMovementDirection
             });
         }
-    
+        
         // Si el salto tiene hang time, iniciar hang time
         if (jumpType.hangTime > 0f)
         {
@@ -423,13 +492,13 @@ public class JumpController : MonoBehaviour
             hangTimeStart = Time.time;
             currentHangDuration = jumpType.hangTime;
             pendingJumpAfterHang = jumpType;
-        
+            
             EventBus.Raise<OnSetHangTimeState>(new OnSetHangTimeState()
             {
                 Player = gameObject,
                 IsInHangTime = true
             });
-        
+            
             EventBus.Raise<OnExecuteJumpCommand>(new OnExecuteJumpCommand()
             {
                 Player = gameObject,
@@ -444,7 +513,7 @@ public class JumpController : MonoBehaviour
                 JumpType = jumpType
             });
         }
-    
+        
         return true;
     }
 }
