@@ -21,6 +21,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float maxSpeed = 8.0f;
     [SerializeField] private float maxCrouchingSpeed = 8.0f;
     [SerializeField] private float AirDivider = 8f;
+    [SerializeField] private float CrouchDivider = 8f;
     
     [Header("Jump Values")]
     [SerializeField] private float jumpCooldown = 0.2f; // Tiempo antes de poder detectar grounded otra vez
@@ -405,6 +406,14 @@ private void RotatePlayer()
         // Código normal cuando NO está deslizando
         if (grounded)
         {
+            float maxSpeed = this.maxSpeed;
+            float speedLose = this.speedLose;
+            if (isCrouching)
+            {
+                maxSpeed = maxCrouchingSpeed;
+                speedLose = this.speedLose/CrouchDivider;
+            }
+
             if (RisingSpeed)
             {
                 if (currentSpeed > maxSpeed)
