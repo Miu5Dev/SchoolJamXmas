@@ -4,11 +4,11 @@ using System.Collections;
 public class DoorAnimationTrigger : MonoBehaviour
 {
     public Animator doorAnimator;
-    private bool isPlayerInFrontHitbox = false;
-    private bool isPlayerInBackHitbox = false;
+    [SerializeField] private bool isPlayerInFrontHitbox = false;
+    [SerializeField] private bool isPlayerInBackHitbox = false;
     public GameObject interactionIcon;
     public bool oneTimeUse = false;
-    private bool opened = false;
+    [SerializeField]private bool opened = false;
     public float wait = 0.2f;
 
     private void OnEnable()
@@ -23,6 +23,7 @@ public class DoorAnimationTrigger : MonoBehaviour
     
     private void doStuff(OnActionInputEvent ev)
     {
+        
         if (isPlayerInFrontHitbox)
         {
             StartCoroutine(TriggerDoor(true));
@@ -49,7 +50,7 @@ public class DoorAnimationTrigger : MonoBehaviour
         doorAnimator.ResetTrigger("IsToggled");
     }
 
-    void OnTriggerEnter(Collider other)
+    void OnTriggerStay(Collider other)
     {
         if (other.CompareTag("Player") && opened == false)
         {

@@ -305,7 +305,7 @@ GameObject:
   - component: {fileID: 6264370258122366137}
   m_Layer: 7
   m_Name: Bean
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -559,7 +559,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04f03f0f1c86ece4c90e25e9adf4f68c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minSlideAngle: 50
+  minSlideAngle: 65
   slideTag: Slide
   slideSpeedGain: 5
   maxSlideSpeed: 100
