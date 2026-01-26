@@ -11,12 +11,17 @@ public class JumpController : MonoBehaviour
     public JumpTypeCreator longjump;
     public JumpTypeCreator groundPound;
     public JumpTypeCreator groundPoundJump;
+    public JumpTypeCreator groundDive;
 
     [Header("Config")] 
     public float delayBetweenJumps = 0.2f;
     public float jumpChainWindow = 0.4f;
     public float longjumpSpeedThreshold = 0.5f;
-    public float comboSpeedThreshold = 0.3f; // Velocidad mínima para acumular combo
+    public float comboSpeedThreshold = 0.3f;
+    public float groundDiveSpeedThreshold = 0.3f;
+    
+    [Header("Longjump Config")]
+    public float longjumpCrouchDelay = 0.15f;
     
     [Header("Ground Pound Config")]
     public float groundPoundJumpWindow = 0.5f;
@@ -24,7 +29,7 @@ public class JumpController : MonoBehaviour
     
     [Header("Input Detection")]
     public float backflipInputThreshold = -0.7f;
-    public float backflipDirectionChangeAngle = 120f; // Ángulo mínimo para considerar dirección opuesta
+    public float backflipDirectionChangeAngle = 120f;
     
     [Header("Debug")]
     [SerializeField] private int currentJumpInChain = 0;
@@ -47,9 +52,12 @@ public class JumpController : MonoBehaviour
     [SerializeField] private float currentSpeed = 0f;
     [SerializeField] private bool grounded = false;
     [SerializeField] private bool isJumping = false;
+    [SerializeField] private bool jumpConsumed = false; // NUEVO: Si ya se usó este input
     [SerializeField] private bool isAction = false;
+    [SerializeField] private bool actionConsumed = false; // NUEVO: Si ya se usó este input
     [SerializeField] private bool isCrouching = false;
     [SerializeField] private bool crouchPressedInAir = false;
+    [SerializeField] private float crouchStartTime = -1f;
     [SerializeField] private Vector2 inputDirection = Vector2.zero;
     
     [SerializeField] private Vector3 currentMoveDirection3D = Vector3.zero;
@@ -57,7 +65,7 @@ public class JumpController : MonoBehaviour
     [SerializeField] private bool recentSharpTurn = false;
     [SerializeField] private float sharpTurnTime = -1f;
     [SerializeField] private float sharpTurnAngle = 0f;
-    [SerializeField] private bool backflipConsumed = false; // Flag para evitar backflip repetido
+    [SerializeField] private bool backflipConsumed = false;
     
     void OnEnable()
     {
@@ -93,9 +101,8 @@ public class JumpController : MonoBehaviour
             lastGroundedTime = Time.time;
             isDiving = false;
             crouchPressedInAir = false;
-            backflipConsumed = false; // Resetear al tocar el suelo
+            backflipConsumed = false;
             
-            // Resetear ground pound al tocar el suelo
             if (isGroundPounding)
             {
                 EventBus.Raise<OnPlayerLandEvent>(new OnPlayerLandEvent()
@@ -112,7 +119,6 @@ public class JumpController : MonoBehaviour
                 canCancelGroundPound = false;
             }
             
-            // Cancelar hang time al tocar el suelo
             if (isInHangTime)
             {
                 isInHangTime = false;
@@ -134,7 +140,6 @@ public class JumpController : MonoBehaviour
     
     private void OnPlayerLand(OnPlayerLandEvent ev)
     {
-        // Cancelar hang time si aterriza
         if (isInHangTime)
         {
             isInHangTime = false;
@@ -152,9 +157,10 @@ public class JumpController : MonoBehaviour
     {
         isJumping = e.pressed;
         
-        // Resetear backflipConsumed cuando suelta el botón de salto
+        // NUEVO: Resetear consumed cuando suelta el botón
         if (!e.pressed)
         {
+            jumpConsumed = false;
             backflipConsumed = false;
         }
     }
@@ -162,6 +168,12 @@ public class JumpController : MonoBehaviour
     private void OnActionInput(OnActionInputEvent e)
     {
         isAction = e.pressed;
+        
+        // NUEVO: Resetear consumed cuando suelta el botón
+        if (!e.pressed)
+        {
+            actionConsumed = false;
+        }
     }
     
     private void OnCrouchInput(OnCrouchInputEvent e)
@@ -169,16 +181,22 @@ public class JumpController : MonoBehaviour
         bool wasCrouching = isCrouching;
         isCrouching = e.pressed;
         
-        // Detectar si presionó crouch mientras está en el aire
-        if (isCrouching && !wasCrouching && !grounded)
+        if (isCrouching && !wasCrouching)
         {
-            crouchPressedInAir = true;
+            if (grounded)
+            {
+                crouchStartTime = Time.time;
+            }
+            else
+            {
+                crouchPressedInAir = true;
+            }
         }
         
-        // Resetear flag al soltar crouch
         if (!isCrouching)
         {
             crouchPressedInAir = false;
+            crouchStartTime = -1f;
         }
     }
     
@@ -190,17 +208,12 @@ public class JumpController : MonoBehaviour
     private void OnPlayerMove(OnPlayerMoveEvent e)
     {
         currentSpeed = e.speed;
-        
-        // Convertir Direction (Vector2) a Vector3
         currentMoveDirection3D = new Vector3(e.Direction.x, 0, e.Direction.y);
-        
-        // Guardar rotación del jugador
         currentPlayerRotation = e.Rotation;
     }
     
     private void OnDirectionChange(OnDirectionChangeEvent ev)
     {
-        // Detectar giros bruscos (cambios de dirección grandes)
         if (ev.AngleChange > backflipDirectionChangeAngle)
         {
             recentSharpTurn = true;
@@ -214,21 +227,19 @@ public class JumpController : MonoBehaviour
         HandleHangTime();
         HandleGroundPound();
         HandleDive();
+        HandleGroundDive();
         HandleJumpLogic();
         
-        // Resetear cadena si pasa mucho tiempo sin saltar después de aterrizar
         if (grounded && Time.time > lastGroundedTime + jumpChainWindow)
         {
             currentJumpInChain = 0;
         }
         
-        // Resetear ground pound jump window
         if (completedGroundPound && Time.time > groundPoundCompleteTime + groundPoundJumpWindow)
         {
             completedGroundPound = false;
         }
         
-        // Resetear sharp turn window
         if (recentSharpTurn && Time.time > sharpTurnTime + 0.3f)
         {
             recentSharpTurn = false;
@@ -239,7 +250,6 @@ public class JumpController : MonoBehaviour
     {
         if (!isInHangTime) return;
         
-        // Verificar si terminó el hang time
         if (Time.time >= hangTimeStart + currentHangDuration)
         {
             isInHangTime = false;
@@ -250,7 +260,6 @@ public class JumpController : MonoBehaviour
                 IsInHangTime = false
             });
             
-            // Aplicar la fuerza después del hang time
             if (pendingJumpAfterHang != null)
             {
                 float force;
@@ -276,7 +285,6 @@ public class JumpController : MonoBehaviour
     
     private void HandleGroundPound()
     {
-        // Solo permitir ground pound si presionó crouch ESTANDO en el aire
         if (crouchPressedInAir && !grounded && !isGroundPounding && !isDiving && groundPound != null)
         {
             if (RequestJump(groundPound))
@@ -294,7 +302,6 @@ public class JumpController : MonoBehaviour
             }
         }
         
-        // Actualizar si puede cancelar (solo durante hang time del ground pound)
         if (isGroundPounding && canCancelGroundPound)
         {
             if (Time.time > groundPoundStartTime + groundPound.hangTime)
@@ -306,10 +313,9 @@ public class JumpController : MonoBehaviour
     
     private void HandleDive()
     {
-        // DIVE - Presionar action en el aire
-        if (isAction && !grounded && !isDiving && dive != null && Time.time > lastDiveTime + delayBetweenJumps)
+        // NUEVO: Verificar que no esté consumido
+        if (isAction && !actionConsumed && !grounded && !isDiving && dive != null && Time.time > lastDiveTime + delayBetweenJumps)
         {
-            // Puede cancelar ground pound durante hang time
             if (isGroundPounding && canCancelGroundPound)
             {
                 if (RequestJump(dive))
@@ -319,8 +325,8 @@ public class JumpController : MonoBehaviour
                     isGroundPounding = false;
                     canCancelGroundPound = false;
                     currentJumpInChain = 0;
+                    actionConsumed = true; // NUEVO: Consumir input
                     
-                    // Cancelar hang time y reactivar gravedad
                     if (isInHangTime)
                     {
                         isInHangTime = false;
@@ -342,53 +348,75 @@ public class JumpController : MonoBehaviour
         }
     }
     
+    private void HandleGroundDive()
+    {
+        // NUEVO: Verificar que no esté consumido
+        if (isAction && !actionConsumed && grounded && !isDiving && groundDive != null && Time.time > lastDiveTime + delayBetweenJumps)
+        {
+            if (currentSpeed >= groundDiveSpeedThreshold)
+            {
+                if (RequestJump(groundDive))
+                {
+                    lastDiveTime = Time.time;
+                    isDiving = true;
+                    currentJumpInChain = 0;
+                    actionConsumed = true; // NUEVO: Consumir input
+                    
+                    EventBus.Raise<OnPlayerDiveEvent>(new OnPlayerDiveEvent()
+                    {
+                        Player = gameObject
+                    });
+                }
+            }
+        }
+    }
+    
     private void HandleJumpLogic()
     {
-        // BLOQUEAR saltos si está en dive, ground pound o hang time
         if (isDiving || isGroundPounding || isInHangTime) return;
         
-        // Solo procesar si se presionó salto y pasó el delay
-        if (!isJumping || Time.time < lastJumpTime + delayBetweenJumps)
+        // NUEVO: Verificar que no esté consumido
+        if (!isJumping || jumpConsumed || Time.time < lastJumpTime + delayBetweenJumps)
             return;
         
         JumpTypeCreator jumpToExecute = null;
         
-        // PRIORIDAD 0: GROUND POUND JUMP
         if (grounded && completedGroundPound && groundPoundJump != null)
         {
             jumpToExecute = groundPoundJump;
             completedGroundPound = false;
             currentJumpInChain = 0;
         }
-        
-        // PRIORIDAD 1: LONGJUMP o BACKFLIP (cuando está agachado)
         else if (grounded && isCrouching)
         {
-            if (currentSpeed > longjumpSpeedThreshold && longjump != null)
+            bool crouchDelayPassed = crouchStartTime > 0 && Time.time >= crouchStartTime + longjumpCrouchDelay;
+            
+            if (crouchDelayPassed && currentSpeed > longjumpSpeedThreshold && longjump != null)
             {
                 jumpToExecute = longjump;
                 currentJumpInChain = 0;
             }
-            else if (backflip != null)
+            else if (crouchDelayPassed && backflip != null)
             {
                 jumpToExecute = backflip;
                 currentJumpInChain = 0;
             }
+            else
+            {
+                jumpToExecute = normalJump;
+            }
         }
-        // PRIORIDAD 2: BACKFLIP (cuando corre en dirección opuesta)
-        // Solo se activa si hay un giro brusco reciente Y no se ha consumido ya
         else if (grounded && backflip != null && !backflipConsumed)
         {
             if (IsInputOppositeToPlayerDirection())
             {
                 jumpToExecute = backflip;
                 currentJumpInChain = 0;
-                recentSharpTurn = false; // Consumir el flag del giro
-                backflipConsumed = true; // Marcar como consumido para evitar repetición
+                recentSharpTurn = false;
+                backflipConsumed = true;
             }
         }
         
-        // PRIORIDAD 3: Combo de saltos normales
         if (jumpToExecute == null && grounded)
         {
             bool isInComboWindow = Time.time < lastGroundedTime + jumpChainWindow;
@@ -417,14 +445,13 @@ public class JumpController : MonoBehaviour
             }
         }
         
-        // Ejecutar el salto seleccionado
         if (jumpToExecute != null)
         {
             if (RequestJump(jumpToExecute))
             {
                 lastJumpTime = Time.time;
+                jumpConsumed = true; // NUEVO: Consumir input
                 
-                // Incrementar combo solo si tiene velocidad suficiente
                 if (jumpToExecute == normalJump || jumpToExecute == doubleJump || jumpToExecute == tripleJump)
                 {
                     if (currentSpeed >= comboSpeedThreshold)
@@ -445,12 +472,8 @@ public class JumpController : MonoBehaviour
     
     private bool IsInputOppositeToPlayerDirection()
     {
-        // Si no hay input suficiente, no es backflip
         if (inputDirection.magnitude < 0.8f) return false;
         
-        // ÚNICO MÉTODO: Detectar giro brusco reciente (> 120°)
-        // Esto asegura que el backflip solo ocurra cuando hay un cambio de dirección real
-        // y no simplemente por mantener el input hacia atrás
         if (recentSharpTurn && Time.time < sharpTurnTime + 0.3f)
         {
             return true;
@@ -463,7 +486,6 @@ public class JumpController : MonoBehaviour
     {
         if (jumpType == null) return false;
         
-        // Validar condiciones
         switch (jumpType.condition)
         {
             case JumpCondition.GroundedOnly:
@@ -476,7 +498,6 @@ public class JumpController : MonoBehaviour
                 break;
         }
         
-        // Si el salto requiere rotación, emitir evento
         if (jumpType.rotatePlayer)
         {
             EventBus.Raise<OnRotatePlayerCommand>(new OnRotatePlayerCommand()
@@ -487,7 +508,6 @@ public class JumpController : MonoBehaviour
             });
         }
         
-        // Si el salto tiene hang time, iniciar hang time
         if (jumpType.hangTime > 0f)
         {
             isInHangTime = true;

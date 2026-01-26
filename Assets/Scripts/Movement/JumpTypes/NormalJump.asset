@@ -15,7 +15,12 @@ MonoBehaviour:
   jumpType: 0
   jumpForce: 2
   extraSpeed: 5
+  hangTime: 0
   condition: 0
   customCooldown: 0
+  resetSpeedOnJump: 0
+  rotatePlayer: 0
+  rotationDegrees: 0
+  invertMovementDirection: 0
   uphillSpeedMultiplier: 0.3
   ignoreUphillPenalty: 0

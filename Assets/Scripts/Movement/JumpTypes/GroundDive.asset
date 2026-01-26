@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 20e84e968da9e844ab388e4d776edd51, type: 3}
-  m_Name: GroundPoundJump
+  m_Name: GroundDive
   m_EditorClassIdentifier: 
-  jumpType: 5
-  jumpForce: 6
-  extraSpeed: 0
+  jumpType: 8
+  jumpForce: 0.5
+  extraSpeed: 10
   hangTime: 0
   condition: 0
-  customCooldown: 0
+  customCooldown: 0.5
   resetSpeedOnJump: 0
   rotatePlayer: 0
   rotationDegrees: 0
   invertMovementDirection: 0
   uphillSpeedMultiplier: 1
-  ignoreUphillPenalty: 1
+  ignoreUphillPenalty: 0

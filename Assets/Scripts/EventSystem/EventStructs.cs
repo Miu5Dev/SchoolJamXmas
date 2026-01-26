@@ -143,8 +143,8 @@ public class OnPlayerSlideStateEvent : PlayerEventBase
     public bool IsSliding;
     public float ControlMultiplier;
     public Vector3 SlideDirection;
-    public float TargetSpeed; // Velocidad objetivo del slide
-    public float Acceleration; // Qué tan rápido alcanzar esa velocidad
+    public float TargetSpeedGain; // Cuánto gana por segundo
+    public float MaxSlideSpeed; // Velocidad máxima del slide
 }
 
 // ============================================================================
@@ -156,8 +156,13 @@ public class OnPlayerSlopeEvent : PlayerEventBase
     public float SlopeAngle;
     public Vector3 SlopeNormal;
     public Vector3 SlideDirection;
+    public GameObject GroundObject;
+    public string GroundTag;
+    public Vector3 CombinedSlideDirection;
+    public int SlideHitCount;
+    public int TotalHitCount; // NUEVO: Total de hits activos
+    public bool AllHitsAreSlide; // NUEVO: Si todos los hits son slide
 }
-
 // ============================================================================
 // PLAYER GROUND POUND EVENTS
 // ============================================================================
@@ -238,11 +243,12 @@ public enum JumpType
     Normal,
     Double,
     Triple,
-    Long,
+    LongJump,
     Backflip,
     GroundPoundJump,
     GroundPound,
     Dive,
+    GroundDive,
 }
 
 public enum PlayerState

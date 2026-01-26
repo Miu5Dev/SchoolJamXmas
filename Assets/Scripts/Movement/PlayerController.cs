@@ -14,11 +14,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform cameraTransform; // Referencia a la cámara
     
     [Header("Speed Values")]
-    [SerializeField] private float minSpeed = 1.0f;
+    [SerializeField] private float minSpeed = 0.0f;
     [SerializeField] private float currentSpeed = 1.0f;
     [SerializeField] private float speedGain = 0.2f;
     [SerializeField] private float speedLose = 0.05f;
-    [SerializeField] private float maxSpeed = 3.0f;
+    [SerializeField] private float maxSpeed = 8.0f;
+    [SerializeField] private float maxCrouchingSpeed = 8.0f;
     [SerializeField] private float AirDivider = 8f;
     
     [Header("Jump Values")]
@@ -43,8 +44,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool isSliding = false;
     [SerializeField] private float slideControlMultiplier = 1f;
     [SerializeField] private Vector3 slideDirection = Vector3.zero;
-    [SerializeField] private float slideTargetSpeed = 0f;
-    [SerializeField] private float slideAcceleration = 0f;
+    [SerializeField] private float slideSpeedGain = 0f;
+    [SerializeField] private float slideMaxSpeed = 15f;
     
     [Header("Gravity Values")]
     [SerializeField] private float Gravity = -9.81f;
@@ -132,8 +133,8 @@ public class PlayerController : MonoBehaviour
         isSliding = ev.IsSliding;
         slideControlMultiplier = ev.ControlMultiplier;
         slideDirection = ev.SlideDirection;
-        slideTargetSpeed = ev.TargetSpeed;
-        slideAcceleration = ev.Acceleration;
+        slideSpeedGain = ev.TargetSpeedGain;
+        slideMaxSpeed = ev.MaxSlideSpeed;
     }
 
     private void OnStopSliding(OnPlayerStopSlidingEvent ev)
@@ -141,8 +142,8 @@ public class PlayerController : MonoBehaviour
         isSliding = false;
         slideControlMultiplier = 1f;
         slideDirection = Vector3.zero;
-        slideTargetSpeed = 0f;
-        slideAcceleration = 0f;
+        slideSpeedGain = 0f;
+        slideMaxSpeed = 15f;
     }
 
     
@@ -200,7 +201,6 @@ private void CalculateCameraRelativeMovement()
 {
     DirectionChanged = false;
     
-    // NUEVO: Calcular inputMoveDirection SIEMPRE que haya input (antes de cualquier lógica de slide)
     if (inputDirection.magnitude > 0.1f)
     {
         Vector3 cameraForward = cameraTransform.forward;
@@ -217,7 +217,6 @@ private void CalculateCameraRelativeMovement()
         inputMoveDirection = Vector3.zero;
     }
     
-    // Si está deslizando
     if (isSliding)
     {
         Vector3 horizontalSlideDir = new Vector3(slideDirection.x, 0f, slideDirection.z).normalized;
@@ -229,7 +228,7 @@ private void CalculateCameraRelativeMovement()
             if (dotAgainstSlide > 0)
             {
                 float playerStrength = maxSpeed;
-                float slideStrength = slideTargetSpeed;
+                float slideStrength = currentSpeed;
                 
                 float resistRatio = Mathf.Clamp01((playerStrength - slideStrength) / playerStrength);
                 
@@ -276,7 +275,6 @@ private void CalculateCameraRelativeMovement()
         return;
     }
     
-    // Código normal cuando NO está deslizando
     if (inputDirection.magnitude > 0.1f)
     {
         targetMoveDirection = inputMoveDirection;
@@ -323,37 +321,38 @@ private void RotatePlayer()
     
     if (inputMoveDirection.magnitude > 0.1f)
     {
-        // Hay input: verificar si puede rotar hacia donde quiere
         if (isSliding)
         {
             Vector3 horizontalSlideDir = new Vector3(slideDirection.x, 0f, slideDirection.z).normalized;
             float dotAgainstSlide = Vector3.Dot(inputMoveDirection, -horizontalSlideDir);
             
-            // Si intenta mirar hacia arriba del slope
+            float playerStrength = maxSpeed;
+            float slideStrength = currentSpeed;
+            float resistRatio = Mathf.Clamp01((playerStrength - slideStrength) / playerStrength);
+            
             if (dotAgainstSlide > 0)
             {
-                float playerStrength = maxSpeed;
-                float slideStrength = slideTargetSpeed;
-                float resistRatio = Mathf.Clamp01((playerStrength - slideStrength) / playerStrength);
-                
                 if (resistRatio <= 0)
                 {
-                    // No puede mirar hacia arriba, filtrar componente
                     Vector3 perpendicularInput = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
                     
                     if (perpendicularInput.magnitude > 0.1f)
                     {
-                        rotationDirection = perpendicularInput.normalized;
+                        perpendicularInput.Normalize();
+                        
+                        float maxLateralAngle = 45f;
+                        float lateralAngle = Vector3.SignedAngle(horizontalSlideDir, perpendicularInput, Vector3.up);
+                        lateralAngle = Mathf.Clamp(lateralAngle, -maxLateralAngle, maxLateralAngle);
+                        
+                        rotationDirection = Quaternion.Euler(0f, lateralAngle, 0f) * horizontalSlideDir;
                     }
                     else
                     {
-                        // Input es puramente hacia arriba, usar dirección del slide
                         rotationDirection = horizontalSlideDir;
                     }
                 }
                 else
                 {
-                    // Puede mirar parcialmente hacia arriba
                     Vector3 uphillComponent = dotAgainstSlide * -horizontalSlideDir * resistRatio;
                     Vector3 otherComponent = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
                     rotationDirection = (uphillComponent + otherComponent).normalized;
@@ -361,19 +360,20 @@ private void RotatePlayer()
             }
             else
             {
-                // Mira hacia abajo o perpendicular, permitir
-                rotationDirection = inputMoveDirection;
+                float maxLateralAngle = 45f;
+                float inputAngle = Vector3.SignedAngle(horizontalSlideDir, inputMoveDirection, Vector3.up);
+                inputAngle = Mathf.Clamp(inputAngle, -maxLateralAngle, maxLateralAngle);
+                
+                rotationDirection = Quaternion.Euler(0f, inputAngle, 0f) * horizontalSlideDir;
             }
         }
         else
         {
-            // No está en slide, rotar libremente hacia el input
             rotationDirection = inputMoveDirection;
         }
     }
     else
     {
-        // Sin input: rotar hacia donde se mueve
         rotationDirection = moveDirection;
     }
     
@@ -390,18 +390,18 @@ private void RotatePlayer()
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationStep);
     }
 }
-
     private void SpeedController()
     {
         float moveDirectionMultiplier = Mathf.Clamp(inputDirection.magnitude, 0.1f, 1f);
-    
-        // Si está deslizando, acelerar hacia la velocidad del slide
+        
+        // Si está deslizando, usar lógica de slide
         if (isSliding)
         {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, slideTargetSpeed, slideAcceleration * Time.deltaTime);
+            currentSpeed += slideSpeedGain * Time.deltaTime;
+            currentSpeed = Mathf.Min(currentSpeed, slideMaxSpeed);
             return;
         }
-    
+        
         // Código normal cuando NO está deslizando
         if (grounded)
         {

@@ -3,7 +3,8 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 3
-  tags: []
+  tags:
+  - Slide
   layers:
   - Default
   - TransparentFX
@@ -13,7 +14,6 @@ TagManager:
   - UI
   - InvisibleWall
   - Player
-  - 
   - 
   - 
   - 
