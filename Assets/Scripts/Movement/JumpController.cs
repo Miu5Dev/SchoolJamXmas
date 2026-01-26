@@ -16,6 +16,7 @@ public class JumpController : MonoBehaviour
     public float delayBetweenJumps = 0.2f;
     public float jumpChainWindow = 0.4f;
     public float longjumpSpeedThreshold = 0.5f;
+    public float comboSpeedThreshold = 0.3f; // Velocidad mínima para acumular combo
     
     [Header("Ground Pound Config")]
     public float groundPoundJumpWindow = 0.5f;
@@ -56,6 +57,7 @@ public class JumpController : MonoBehaviour
     [SerializeField] private bool recentSharpTurn = false;
     [SerializeField] private float sharpTurnTime = -1f;
     [SerializeField] private float sharpTurnAngle = 0f;
+    [SerializeField] private bool backflipConsumed = false; // Flag para evitar backflip repetido
     
     void OnEnable()
     {
@@ -91,6 +93,7 @@ public class JumpController : MonoBehaviour
             lastGroundedTime = Time.time;
             isDiving = false;
             crouchPressedInAir = false;
+            backflipConsumed = false; // Resetear al tocar el suelo
             
             // Resetear ground pound al tocar el suelo
             if (isGroundPounding)
@@ -148,6 +151,12 @@ public class JumpController : MonoBehaviour
     private void OnJumpInput(OnJumpInputEvent e)
     {
         isJumping = e.pressed;
+        
+        // Resetear backflipConsumed cuando suelta el botón de salto
+        if (!e.pressed)
+        {
+            backflipConsumed = false;
+        }
     }
     
     private void OnActionInput(OnActionInputEvent e)
@@ -367,13 +376,15 @@ public class JumpController : MonoBehaviour
             }
         }
         // PRIORIDAD 2: BACKFLIP (cuando corre en dirección opuesta)
-        else if (grounded && backflip != null)
+        // Solo se activa si hay un giro brusco reciente Y no se ha consumido ya
+        else if (grounded && backflip != null && !backflipConsumed)
         {
             if (IsInputOppositeToPlayerDirection())
             {
                 jumpToExecute = backflip;
                 currentJumpInChain = 0;
-                recentSharpTurn = false; // Consumir el flag
+                recentSharpTurn = false; // Consumir el flag del giro
+                backflipConsumed = true; // Marcar como consumido para evitar repetición
             }
         }
         
@@ -381,8 +392,9 @@ public class JumpController : MonoBehaviour
         if (jumpToExecute == null && grounded)
         {
             bool isInComboWindow = Time.time < lastGroundedTime + jumpChainWindow;
+            bool hasEnoughSpeed = currentSpeed >= comboSpeedThreshold;
             
-            if (!isInComboWindow)
+            if (!isInComboWindow || !hasEnoughSpeed)
             {
                 currentJumpInChain = 0;
             }
@@ -412,13 +424,20 @@ public class JumpController : MonoBehaviour
             {
                 lastJumpTime = Time.time;
                 
-                // Incrementar combo
+                // Incrementar combo solo si tiene velocidad suficiente
                 if (jumpToExecute == normalJump || jumpToExecute == doubleJump || jumpToExecute == tripleJump)
                 {
-                    currentJumpInChain++;
-                    
-                    if (currentJumpInChain > 2)
+                    if (currentSpeed >= comboSpeedThreshold)
+                    {
+                        currentJumpInChain++;
+                        
+                        if (currentJumpInChain > 2)
+                            currentJumpInChain = 0;
+                    }
+                    else
+                    {
                         currentJumpInChain = 0;
+                    }
                 }
             }
         }
@@ -429,32 +448,15 @@ public class JumpController : MonoBehaviour
         // Si no hay input suficiente, no es backflip
         if (inputDirection.magnitude < 0.8f) return false;
         
-        // MÉTODO 1: Detectar giro brusco reciente (> 120°)
-        // Esto funciona para cualquier dirección - izquierda/derecha, adelante/atrás, diagonal
+        // ÚNICO MÉTODO: Detectar giro brusco reciente (> 120°)
+        // Esto asegura que el backflip solo ocurra cuando hay un cambio de dirección real
+        // y no simplemente por mantener el input hacia atrás
         if (recentSharpTurn && Time.time < sharpTurnTime + 0.3f)
         {
             return true;
         }
         
-        // MÉTODO 2: Fallback para cuando no hay movimiento previo
-        // Comparar input con la dirección actual del jugador
-        if (currentMoveDirection3D.magnitude > 0.1f)
-        {
-            // Extraer forward del jugador
-            Vector3 playerForward = currentPlayerRotation * Vector3.forward;
-            
-            // Comparar dirección de movimiento actual con forward del jugador
-            float dotProduct = Vector3.Dot(currentMoveDirection3D.normalized, playerForward.normalized);
-            
-            // Si el ángulo es > 120° (dot < -0.5), está corriendo hacia atrás
-            if (dotProduct < -0.5f)
-            {
-                return true;
-            }
-        }
-        
-        // MÉTODO 3: Fallback final - input hacia atrás de la cámara
-        return inputDirection.y < backflipInputThreshold;
+        return false;
     }
     
     private bool RequestJump(JumpTypeCreator jumpType)

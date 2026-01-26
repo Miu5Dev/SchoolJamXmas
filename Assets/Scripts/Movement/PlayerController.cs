@@ -230,8 +230,12 @@ public class PlayerController : MonoBehaviour
         }
         // Si no hay input, moveDirection se mantiene como está
     }
+
     private void RotatePlayer()
     {
+
+        if (moveDirection.magnitude > 0.1f)
+        {
             // Crear una rotación hacia la dirección de movimiento
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
 
@@ -245,10 +249,14 @@ public class PlayerController : MonoBehaviour
             // Interpolar suavemente hacia la rotación objetivo
             float rotationStep = currentRotationSpeed * Time.deltaTime;
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationStep);
+        }
     }
 
     private void SpeedController()
     {
+        
+        float moveDirectionMultiplier = Mathf.Clamp(inputDirection.magnitude,0.1f,1f);
+        
         if (grounded)
         {
             if (RisingSpeed)
@@ -257,7 +265,7 @@ public class PlayerController : MonoBehaviour
                     currentSpeed -= speedLose;
                 else if (currentSpeed < maxSpeed)
                 {
-                    currentSpeed += speedGain;
+                    currentSpeed += speedGain * moveDirectionMultiplier;
                     currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
                 }
             }
@@ -282,7 +290,7 @@ public class PlayerController : MonoBehaviour
                     currentSpeed -= speedLose;
                 else if (currentSpeed < maxSpeed)
                 {
-                    currentSpeed += speedGain/AirDivider;
+                    currentSpeed += (speedGain * moveDirectionMultiplier)/AirDivider;
                     currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
                 }
             }
