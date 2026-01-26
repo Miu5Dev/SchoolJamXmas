@@ -166,7 +166,6 @@ public class PlayerControllerOld : MonoBehaviour
         {
             if (interactable != null && !dialogueUI.IsOpen)
             {
-                interactable.Interact(this);
             }
         }
 

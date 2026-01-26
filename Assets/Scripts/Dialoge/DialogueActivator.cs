@@ -6,6 +6,27 @@ public class DialogueActivator : MonoBehaviour, Interactable
     [SerializeField] private DialogueObject dialogueObject;
     public GameObject interactionIcon;
 
+    private PlayerController playerInRange;
+    private DialogueUI dialogueUI;
+
+    private void OnEnable()
+    {
+        EventBus.Subscribe<OnActionInputEvent>(doStuff);
+    }
+
+    private void OnDisable()
+    {
+        EventBus.Unsubscribe<OnActionInputEvent>(doStuff);
+    }
+
+    private void doStuff(OnActionInputEvent ev)
+    {
+        if (ev.pressed && playerInRange != null && dialogueUI != null)
+        {
+            Interact(playerInRange);
+        }
+    }
+
     public void UpdateDialogueObject(DialogueObject dialogueObject)
     {
         this.dialogueObject = dialogueObject;
@@ -13,42 +34,45 @@ public class DialogueActivator : MonoBehaviour, Interactable
 
     private void OnTriggerEnter(Collider other)
     {
-        interactionIcon.SetActive(true);
-        if (other.CompareTag("Player") && other.TryGetComponent(out PlayerControllerOld player))
+        if (other.CompareTag("Player") && other.TryGetComponent(out PlayerController player))
         {
-            player.interactable = this;
+            playerInRange = player;
+            dialogueUI = player.DialogueUI;
+            interactionIcon.SetActive(true);
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player") && other.TryGetComponent(out PlayerControllerOld player))
+        if (other.CompareTag("Player") && other.TryGetComponent(out PlayerController player))
         {
-            interactionIcon.SetActive(false);
-            if (player.interactable is DialogueActivator dialogueActivator && dialogueActivator == this)
+            if (playerInRange == player)
             {
-                player.interactable = null;
+                playerInRange = null;
+                dialogueUI = null;
+                interactionIcon.SetActive(false);
             }
         }
-
     }
 
-    public void Interact(PlayerControllerOld player)
+    public void Interact(PlayerController player)
     {
+        if (dialogueUI == null) return;
+
         foreach (DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>())
         {
             if (responseEvents.DialogueObject == dialogueObject)
             {
-                player.DialogueUI.AddResponseEvents(responseEvents.Events);
+                dialogueUI.AddResponseEvents(responseEvents.Events);
                 break;
             }
         }
         interactionIcon.SetActive(false);
-        player.DialogueUI.showDialogue(dialogueObject);
-        
-            // Start a routine to wait for the dialogue to finish
-            StartCoroutine(WaitUntilDialogueClosed(player.DialogueUI));
-        }
+        dialogueUI.showDialogue(dialogueObject);
+
+        // Start a routine to wait for the dialogue to finish
+        StartCoroutine(WaitUntilDialogueClosed(dialogueUI));
+    }
 
         private System.Collections.IEnumerator WaitUntilDialogueClosed(DialogueUI dialogueUI)
         {

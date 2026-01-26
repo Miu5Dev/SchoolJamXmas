@@ -9,8 +9,22 @@ using UnityEngine;
 [RequireComponent(typeof(MomentumSystem))]
 public class PlayerController : MonoBehaviour
 {
+<<<<<<< Updated upstream
     [Header("References")]
     [SerializeField] private Transform cameraTransform;
+=======
+    //Dialog Dependencies START ( in variables )
+    [SerializeField] private DialogueUI dialogueUI;
+
+    public DialogueUI DialogueUI => dialogueUI;
+    //Dialog Dependencies END
+    /// <summary>
+    /// MOVEMENT VARIABLES
+    /// </summary>
+    [Header("Obligatory")]
+    [SerializeField] private CharacterController controller;
+    [SerializeField] private Transform cameraTransform; // Referencia a la cámara
+>>>>>>> Stashed changes
     
     [Header("Movement Settings")]
     [SerializeField] private float minSpeed = 2f;               // Starting speed
@@ -68,6 +82,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float diveHorizontalSpeed = 15f;
     [SerializeField] private float diveDuration = 0.5f;
     
+<<<<<<< Updated upstream
     [Header("Slope Slide Settings")]
     [SerializeField] private float slideAccelerationMin = 3f;
     [SerializeField] private float slideAccelerationMax = 12f;
@@ -79,6 +94,25 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float ledgeJumpForce = 10f;
     [SerializeField] private float ledgeMoveSpeed = 3f;
     [SerializeField] private LayerMask ledgeLayer = ~0;
+=======
+    [Header("DEBUG")]
+    [SerializeField] private Vector3 moveDirection = Vector3.zero;
+    [SerializeField] private Vector3 targetMoveDirection = Vector3.zero;
+    [SerializeField] private Vector2 inputDirection = Vector2.zero;
+    [SerializeField] private Vector3 SlopeNormal = Vector3.zero;
+    [SerializeField] public float verticalVelocity = 0f;
+    [SerializeField] private bool grounded = false;
+    [SerializeField] private bool DirectionChanged = false; // NUEVO
+    [SerializeField] private bool isInHangTime = false; // NUEVO
+    [SerializeField] private Vector3 inputMoveDirection = Vector3.zero; // NUEVO - dirección pura del input
+    
+    /// <summary>
+    /// PRIVATE VARIABLES
+    /// </summary>
+    private bool RisingSpeed = false;
+    private float lastJumpTime = -1f; // Cuando saltó por última vez
+
+>>>>>>> Stashed changes
     
     [Header("Visual Settings")]
     [SerializeField] private bool alignToSlope = true;

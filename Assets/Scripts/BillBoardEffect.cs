@@ -2,12 +2,11 @@ using UnityEngine;
 
 public class BillboardEffect : MonoBehaviour {
     [SerializeField] private BillboardType billboardType;
-
-    [Header("Lock Rotation")]
+    [Header("Lock Rotation")] 
     [SerializeField] private bool lockX;
     [SerializeField] private bool lockY;
     [SerializeField] private bool lockZ;
-
+    
     private Vector3 originalRotation;
 
     public enum BillboardType { LookAtCamera, CameraForward };
