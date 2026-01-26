@@ -1,5 +1,4 @@
 using UnityEngine;
-using System;
 
 // ============================================================================
 // BASE EVENT CLASSES
@@ -19,29 +18,29 @@ public abstract class InputEventBase
 // INPUT EVENTS
 // ============================================================================
 
-public class onMoveInputEvent : InputEventBase
+public class OnMoveInputEvent : InputEventBase
 {
     public Vector2 Direction;
 }
 
-public class onInteractInputEvent : InputEventBase
-{
-}
-
-public class onCrouchInputEvent : InputEventBase
-{
-}
-
-public class onJumpInputEvent : InputEventBase
-{
-}
-
-public class onLookInputEvent : InputEventBase
+public class OnLookInputEvent : InputEventBase
 {
     public Vector2 Delta;
 }
 
-public class onDiveInputEvent : InputEventBase
+public class OnActionInputEvent : InputEventBase
+{
+}
+
+public class OnCrouchInputEvent : InputEventBase
+{
+}
+
+public class OnJumpInputEvent : InputEventBase
+{
+}
+
+public class OnSwapInputEvent : InputEventBase
 {
 }
 
@@ -54,25 +53,21 @@ public class OnPlayerMoveEvent : PlayerEventBase
     public Vector3 Position;
     public Quaternion Rotation;
     public Vector2 Direction;
-    public float Speed;
-    public bool IsAccelerating;
+    
+    public float speed;
 }
 
 public class OnPlayerStopEvent : PlayerEventBase
 {
 }
 
-public class OnPlayerTurnEvent : PlayerEventBase
+public class OnDirectionChangeEvent
 {
-    public float TurnAmount;
-    public bool IsQuickTurn;
-}
-
-public class OnPlayerAccelerationChangeEvent : PlayerEventBase
-{
-    public float CurrentSpeed;
-    public float TargetSpeed;
-    public float AccelerationRate;
+    public GameObject Player;
+    public float AngleChange; // Cuántos grados cambió
+    public Vector3 OldDirection; // Dirección anterior
+    public Vector3 NewDirection; // Nueva dirección
+    public float PenaltyFactor; // 0-1, qué tanto se penalizó
 }
 
 // ============================================================================
@@ -82,16 +77,26 @@ public class OnPlayerAccelerationChangeEvent : PlayerEventBase
 public class OnPlayerJumpEvent : PlayerEventBase
 {
     public JumpType JumpType;
-    public int JumpCount;
-    public Vector3 JumpDirection;
     public float JumpForce;
+
+    public float accelerationMultiplier;
 }
 
 public class OnPlayerLandEvent : PlayerEventBase
 {
-    public float FallSpeed;
+    public float YHeight;
     public bool HardLanding;
     public bool FromGroundPound;
+}
+
+public class OnExecuteJumpCommand : PlayerEventBase
+{
+    public JumpTypeCreator JumpType;
+}
+
+public class OnApplyJumpForceCommand : PlayerEventBase
+{
+    public float Force; // Fuerza vertical a aplicar
 }
 
 public class OnPlayerGroundedEvent : PlayerEventBase
@@ -99,10 +104,20 @@ public class OnPlayerGroundedEvent : PlayerEventBase
     public bool IsGrounded;
 }
 
+public class OnSetHangTimeState : PlayerEventBase
+{
+    public bool IsInHangTime;
+}
+
+public class OnRotatePlayerCommand : PlayerEventBase
+{
+    public float Degrees; // Grados a rotar (180 para backflip)
+    public bool InvertMovementDirection; // Si debe invertir la dirección del movimiento
+}
+
 public class OnPlayerAirborneEvent : PlayerEventBase
 {
-    public float AirTime;
-    public float VerticalVelocity;
+    public float YHeight;
 }
 
 // ============================================================================
@@ -114,34 +129,22 @@ public class OnPlayerCrouchEvent : PlayerEventBase
     public bool IsCrouching;
 }
 
-public class OnPlayerCrouchSlideStartEvent : PlayerEventBase
+public class OnPlayerStopSlidingEvent : PlayerEventBase
 {
-    public float InitialSpeed;
-    public Vector3 SlideDirection;
-}
-
-public class OnPlayerCrouchSlideEndEvent : PlayerEventBase
-{
-    public float FinalSpeed;
-    public CrouchSlideEndReason Reason;
 }
 
 public class OnPlayerSlidingEvent : PlayerEventBase
 {
-    public bool IsSliding;
-    public float SlideSpeed;
     public Vector3 SlideDirection;
 }
 
-public class OnPlayerCrouchSlidingEvent : PlayerEventBase
+public class OnPlayerSlideStateEvent : PlayerEventBase
 {
-    public bool IsCrouchSliding;
-    public float Speed;
-}
-
-public class OnPlayerCrouchLockedEvent : PlayerEventBase
-{
-    public bool IsLocked;
+    public bool IsSliding;
+    public float ControlMultiplier;
+    public Vector3 SlideDirection;
+    public float TargetSpeedGain; // Cuánto gana por segundo
+    public float MaxSlideSpeed; // Velocidad máxima del slide
 }
 
 // ============================================================================
@@ -151,51 +154,27 @@ public class OnPlayerCrouchLockedEvent : PlayerEventBase
 public class OnPlayerSlopeEvent : PlayerEventBase
 {
     public float SlopeAngle;
-    public bool IsOnSteepSlope;
     public Vector3 SlopeNormal;
-}
-
-public class OnPlayerSlopeSlideEvent : PlayerEventBase
-{
-    public bool IsSliding;
-    public float SlideSpeed;
     public Vector3 SlideDirection;
-    public float SlopeAngle;
+    public GameObject GroundObject;
+    public string GroundTag;
+    public Vector3 CombinedSlideDirection;
+    public int SlideHitCount;
+    public int TotalHitCount; // NUEVO: Total de hits activos
+    public bool AllHitsAreSlide; // NUEVO: Si todos los hits son slide
 }
-
-// ============================================================================
-// PLAYER MOMENTUM EVENTS
-// ============================================================================
-
-public class OnPlayerMomentumEvent : PlayerEventBase
-{
-    public Vector3 Momentum;
-    public float MomentumMagnitude;
-    public MomentumSource Source;
-}
-
-public class OnPlayerSpeedEvent : PlayerEventBase
-{
-    public float CurrentSpeed;
-    public float SlideSpeed;
-    public float TotalSpeed;
-    public float MaxSpeed;
-}
-
 // ============================================================================
 // PLAYER GROUND POUND EVENTS
 // ============================================================================
 
 public class OnPlayerGroundPoundEvent : PlayerEventBase
 {
-    public GroundPoundPhase Phase;
+    
 }
 
 public class OnPlayerDiveEvent : PlayerEventBase
 {
-    public Vector3 DiveDirection;
-    public float DiveSpeed;
-    public bool FromGroundPound;
+    
 }
 
 // ============================================================================
@@ -217,8 +196,7 @@ public class OnPlayerLedgeMoveEvent : PlayerEventBase
 
 public class OnPlayerLedgeClimbEvent : PlayerEventBase
 {
-    public bool IsClimbing;
-    public float Progress;
+    
 }
 
 // ============================================================================
@@ -265,38 +243,12 @@ public enum JumpType
     Normal,
     Double,
     Triple,
-    Long,
+    LongJump,
     Backflip,
-    SlopeJump,
     GroundPoundJump,
-    LedgeJump,
-    CrouchJump
-}
-
-public enum CrouchSlideEndReason
-{
-    SpeedTooLow,
-    Released,
-    Jumped,
-    HitObstacle,
-    SlopeChange
-}
-
-public enum MomentumSource
-{
-    Movement,
-    Slide,
-    Jump,
     GroundPound,
-    External
-}
-
-public enum GroundPoundPhase
-{
-    Starting,    // Freeze in air
-    Falling,     // Fast fall
-    Landing,     // Hit ground
-    Bouncing     // After ground pound jump
+    Dive,
+    GroundDive,
 }
 
 public enum PlayerState

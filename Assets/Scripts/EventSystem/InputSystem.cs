@@ -9,10 +9,6 @@ using UnityEngine.InputSystem;
 public class InputSystem : MonoBehaviour
 {
     private MyInputs inputs;
-    
-    // Store current input values for continuous polling
-    private Vector2 currentMoveInput;
-    private Vector2 currentLookInput;
 
     private void Awake()
     {
@@ -27,12 +23,14 @@ public class InputSystem : MonoBehaviour
         inputs.Player.Look.canceled += OnLookCanceled;
         
         // Button inputs
-        inputs.Player.Interact.performed += OnInteractInput;
-        inputs.Player.Interact.canceled += OnInteractInput;
+        inputs.Player.Action.performed += OnActionInput;
+        inputs.Player.Action.canceled += OnActionInput;
         inputs.Player.Jump.performed += OnJumpInput;
         inputs.Player.Jump.canceled += OnJumpInput;
         inputs.Player.Crouch.performed += OnCrouchInput;
         inputs.Player.Crouch.canceled += OnCrouchInput;
+        inputs.Player.Swap.performed += OnSwapInput;
+        inputs.Player.Swap.canceled += OnSwapInput;
         
         Debug.Log("[InputSystem] Initialized");
     }
@@ -40,31 +38,13 @@ public class InputSystem : MonoBehaviour
     void OnEnable()
     {
         inputs.Player.Enable();
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
     }
 
     void OnDisable()
     {
         inputs.Player.Disable();
     }
-    
-    private void Update()
-    {
-        // Send move input every frame
-        EventBus.Raise(new onMoveInputEvent()
-        {
-            pressed = currentMoveInput.sqrMagnitude > 0.01f,
-            Direction = currentMoveInput
-        });
-        
-        // Send look input every frame (for controller support)
-        EventBus.Raise(new onLookInputEvent()
-        {
-            pressed = currentLookInput.sqrMagnitude > 0.01f,
-            Delta = currentLookInput
-        });
-    }
+
     
     // ========================================================================
     // MOVEMENT INPUT
@@ -72,12 +52,20 @@ public class InputSystem : MonoBehaviour
     
     private void OnMovePerformed(InputAction.CallbackContext context)
     {
-        currentMoveInput = context.ReadValue<Vector2>();
+        EventBus.Raise(new OnMoveInputEvent()
+        {
+            pressed = context.performed,
+            Direction = context.ReadValue<Vector2>()
+        });
     }
     
     private void OnMoveCanceled(InputAction.CallbackContext context)
     {
-        currentMoveInput = Vector2.zero;
+        EventBus.Raise(new OnMoveInputEvent()
+        {
+            pressed = context.performed,
+            Direction = context.ReadValue<Vector2>()
+        });
     }
     
     // ========================================================================
@@ -86,22 +74,29 @@ public class InputSystem : MonoBehaviour
     
     private void OnLookPerformed(InputAction.CallbackContext context)
     {
-        currentLookInput = context.ReadValue<Vector2>();
+        EventBus.Raise(new OnLookInputEvent()
+        {
+            pressed = context.performed,
+            Delta = context.ReadValue<Vector2>()
+        });
     }
     
     private void OnLookCanceled(InputAction.CallbackContext context)
     {
-        // IMPORTANT: Reset to zero when released
-        currentLookInput = Vector2.zero;
+        EventBus.Raise(new OnLookInputEvent()
+        {
+            pressed = context.performed,
+            Delta = context.ReadValue<Vector2>()
+        });
     }
     
     // ========================================================================
     // BUTTON INPUTS
     // ========================================================================
 
-    private void OnInteractInput(InputAction.CallbackContext context)
+    private void OnActionInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new onInteractInputEvent()
+        EventBus.Raise(new OnActionInputEvent()
         {
             pressed = context.performed
         });
@@ -109,7 +104,7 @@ public class InputSystem : MonoBehaviour
 
     private void OnCrouchInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new onCrouchInputEvent()
+        EventBus.Raise(new OnCrouchInputEvent()
         {
             pressed = context.performed
         });
@@ -117,7 +112,15 @@ public class InputSystem : MonoBehaviour
 
     private void OnJumpInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new onJumpInputEvent()
+        EventBus.Raise(new OnJumpInputEvent()
+        {
+            pressed = context.performed
+        });
+    }
+    
+    private void OnSwapInput(InputAction.CallbackContext context)
+    {
+        EventBus.Raise(new OnSwapInputEvent()
         {
             pressed = context.performed
         });
