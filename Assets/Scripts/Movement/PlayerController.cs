@@ -38,7 +38,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool useArcMovement = true; // Si false, movimiento más directo
     [SerializeField] private float directionChangePenalty = 0.5f; // Cuánto reduces velocidad al cambiar de dirección (0-1)
     [SerializeField] private float directionChangeThreshold = 90f; // Ángulo mínimo para considerar "cambio de dirección"
-
+    
+    [Header("Slide State")]
+    [SerializeField] private bool isSliding = false;
+    [SerializeField] private float slideControlMultiplier = 1f;
+    [SerializeField] private Vector3 slideDirection = Vector3.zero;
+    [SerializeField] private float slideTargetSpeed = 0f;
+    [SerializeField] private float slideAcceleration = 0f;
     
     [Header("Gravity Values")]
     [SerializeField] private float Gravity = -9.81f;
@@ -58,6 +64,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool grounded = false;
     [SerializeField] private bool DirectionChanged = false; // NUEVO
     [SerializeField] private bool isInHangTime = false; // NUEVO
+    [SerializeField] private Vector3 inputMoveDirection = Vector3.zero; // NUEVO - dirección pura del input
 
     
 
@@ -94,6 +101,8 @@ public class PlayerController : MonoBehaviour
         EventBus.Subscribe<OnApplyJumpForceCommand>(OnApplyJumpForce); // NUEV
         EventBus.Subscribe<OnSetHangTimeState>(OnSetHangTimeState); // NUEVO
         EventBus.Subscribe<OnRotatePlayerCommand>(OnRotatePlayer); // NUEVO
+        EventBus.Subscribe<OnPlayerSlideStateEvent>(OnSlideState);
+        EventBus.Subscribe<OnPlayerStopSlidingEvent>(OnStopSliding);
 
     }
 
@@ -112,8 +121,30 @@ public class PlayerController : MonoBehaviour
         EventBus.Unsubscribe<OnApplyJumpForceCommand>(OnApplyJumpForce); // NUEVO
         EventBus.Unsubscribe<OnSetHangTimeState>(OnSetHangTimeState); // NUEVO
         EventBus.Unsubscribe<OnRotatePlayerCommand>(OnRotatePlayer); // NUEVO
+        EventBus.Unsubscribe<OnPlayerSlideStateEvent>(OnSlideState);
+        EventBus.Unsubscribe<OnPlayerStopSlidingEvent>(OnStopSliding);
+
 
     }
+    
+    private void OnSlideState(OnPlayerSlideStateEvent ev)
+    {
+        isSliding = ev.IsSliding;
+        slideControlMultiplier = ev.ControlMultiplier;
+        slideDirection = ev.SlideDirection;
+        slideTargetSpeed = ev.TargetSpeed;
+        slideAcceleration = ev.Acceleration;
+    }
+
+    private void OnStopSliding(OnPlayerStopSlidingEvent ev)
+    {
+        isSliding = false;
+        slideControlMultiplier = 1f;
+        slideDirection = Vector3.zero;
+        slideTargetSpeed = 0f;
+        slideAcceleration = 0f;
+    }
+
     
     private void OnRotatePlayer(OnRotatePlayerCommand cmd) // NUEVO
     {
@@ -165,98 +196,213 @@ public class PlayerController : MonoBehaviour
         SlopeNormal = ev.SlopeNormal;
     }
 
-    private void CalculateCameraRelativeMovement()
+private void CalculateCameraRelativeMovement()
+{
+    DirectionChanged = false;
+    
+    // NUEVO: Calcular inputMoveDirection SIEMPRE que haya input (antes de cualquier lógica de slide)
+    if (inputDirection.magnitude > 0.1f)
     {
-        // IMPORTANTE: Reset del flag al inicio del frame
-        DirectionChanged = false;
+        Vector3 cameraForward = cameraTransform.forward;
+        Vector3 cameraRight = cameraTransform.right;
+        cameraForward.y = 0;
+        cameraRight.y = 0;
+        cameraForward.Normalize();
+        cameraRight.Normalize();
         
-        // Solo actualizar la dirección objetivo cuando hay input
+        inputMoveDirection = (cameraForward * inputDirection.y + cameraRight * inputDirection.x).normalized;
+    }
+    else
+    {
+        inputMoveDirection = Vector3.zero;
+    }
+    
+    // Si está deslizando
+    if (isSliding)
+    {
+        Vector3 horizontalSlideDir = new Vector3(slideDirection.x, 0f, slideDirection.z).normalized;
+        
         if (inputDirection.magnitude > 0.1f)
         {
-            // Obtener la dirección forward y right de la cámara
-            Vector3 cameraForward = cameraTransform.forward;
-            Vector3 cameraRight = cameraTransform.right;
+            float dotAgainstSlide = Vector3.Dot(inputMoveDirection, -horizontalSlideDir);
             
-            // Ignorar el componente Y para movimiento en plano horizontal
-            cameraForward.y = 0;
-            cameraRight.y = 0;
-            cameraForward.Normalize();
-            cameraRight.Normalize();
-            
-            // Calcular dirección objetivo relativa a la cámara
-            targetMoveDirection = (cameraForward * inputDirection.y + cameraRight * inputDirection.x);
-            targetMoveDirection.Normalize();
-            
-            // CAMBIO: Solo detectar cambio si realmente estás moviéndote con velocidad significativa
-            if (moveDirection.magnitude > 0.1f && targetMoveDirection.magnitude > 0.1f && currentSpeed > minSpeed + 0.5f)
+            if (dotAgainstSlide > 0)
             {
-                float angleChange = Vector3.Angle(moveDirection, targetMoveDirection);
+                float playerStrength = maxSpeed;
+                float slideStrength = slideTargetSpeed;
                 
-                // Si el cambio de ángulo es significativo, reducir velocidad
-                if (angleChange > directionChangeThreshold)
+                float resistRatio = Mathf.Clamp01((playerStrength - slideStrength) / playerStrength);
+                
+                if (resistRatio <= 0)
                 {
-                    DirectionChanged = true;
+                    Vector3 perpendicularInput = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
                     
-                    // Cuanto mayor el ángulo, mayor la penalización
-                    float penaltyFactor = Mathf.InverseLerp(directionChangeThreshold, 180f, angleChange);
-                    
-                    // Enviar evento
-                    EventBus.Raise<OnDirectionChangeEvent>(new OnDirectionChangeEvent()
+                    if (perpendicularInput.magnitude > 0.1f)
                     {
-                        Player = this.gameObject,
-                        AngleChange = angleChange,
-                        OldDirection = moveDirection,
-                        NewDirection = targetMoveDirection,
-                        PenaltyFactor = penaltyFactor
-                    });
-                    
-                    currentSpeed *= Mathf.Lerp(1f, directionChangePenalty, penaltyFactor);
-                    currentSpeed = Mathf.Max(currentSpeed, minSpeed);
+                        perpendicularInput.Normalize();
+                        moveDirection = Vector3.Lerp(horizontalSlideDir, perpendicularInput, slideControlMultiplier).normalized;
+                    }
+                    else
+                    {
+                        moveDirection = horizontalSlideDir;
+                    }
                 }
-            }
-            
-            // Solo hacer blend cuando HAY input
-            if (useArcMovement && moveDirection.magnitude > 0.01f)
-            {
-                // Cuando hay momentum, hacer blend suave
-                moveDirection = Vector3.Lerp(moveDirection, targetMoveDirection, movementBlendSpeed * Time.deltaTime);
-                moveDirection.Normalize();
+                else
+                {
+                    Vector3 uphillComponent = dotAgainstSlide * -horizontalSlideDir * resistRatio;
+                    Vector3 otherComponent = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
+                    Vector3 adjustedInput = (uphillComponent + otherComponent).normalized;
+                    
+                    moveDirection = Vector3.Lerp(horizontalSlideDir, adjustedInput, slideControlMultiplier).normalized;
+                }
             }
             else
             {
-                // Sin momentum, usar dirección directa
-                moveDirection = targetMoveDirection;
+                moveDirection = Vector3.Lerp(horizontalSlideDir, inputMoveDirection, slideControlMultiplier).normalized;
             }
         }
-        // Si no hay input, moveDirection se mantiene como está
-    }
-
-    private void RotatePlayer()
-    {
-
+        else
+        {
+            moveDirection = horizontalSlideDir;
+        }
+        
+        moveDirection.y = 0f;
         if (moveDirection.magnitude > 0.1f)
         {
-            // Crear una rotación hacia la dirección de movimiento
-            Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
-
-            // Determinar velocidad de rotación basada en la velocidad actual
-            // Usar InverseLerp para normalizar correctamente incluso con momentum
-            float speedFactor = Mathf.InverseLerp(0f, maxSpeed, currentSpeed);
-            speedFactor = Mathf.Clamp01(speedFactor); // Opcional: limitar a 1.0 máximo
-
-            float currentRotationSpeed = Mathf.Lerp(rotationSpeedWhenSlow, rotationSpeed, speedFactor);
-
-            // Interpolar suavemente hacia la rotación objetivo
-            float rotationStep = currentRotationSpeed * Time.deltaTime;
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationStep);
+            moveDirection.Normalize();
+        }
+        
+        targetMoveDirection = moveDirection;
+        return;
+    }
+    
+    // Código normal cuando NO está deslizando
+    if (inputDirection.magnitude > 0.1f)
+    {
+        targetMoveDirection = inputMoveDirection;
+        
+        if (moveDirection.magnitude > 0.1f && targetMoveDirection.magnitude > 0.1f && currentSpeed > minSpeed + 0.5f)
+        {
+            float angleChange = Vector3.Angle(moveDirection, targetMoveDirection);
+            
+            if (angleChange > directionChangeThreshold)
+            {
+                DirectionChanged = true;
+                
+                float penaltyFactor = Mathf.InverseLerp(directionChangeThreshold, 180f, angleChange);
+                
+                EventBus.Raise<OnDirectionChangeEvent>(new OnDirectionChangeEvent()
+                {
+                    Player = this.gameObject,
+                    AngleChange = angleChange,
+                    OldDirection = moveDirection,
+                    NewDirection = targetMoveDirection,
+                    PenaltyFactor = penaltyFactor
+                });
+                
+                currentSpeed *= Mathf.Lerp(1f, directionChangePenalty, penaltyFactor);
+                currentSpeed = Mathf.Max(currentSpeed, minSpeed);
+            }
+        }
+        
+        if (useArcMovement && moveDirection.magnitude > 0.01f)
+        {
+            moveDirection = Vector3.Lerp(moveDirection, targetMoveDirection, movementBlendSpeed * Time.deltaTime);
+            moveDirection.Normalize();
+        }
+        else
+        {
+            moveDirection = targetMoveDirection;
         }
     }
+}
+
+private void RotatePlayer()
+{
+    Vector3 rotationDirection;
+    
+    if (inputMoveDirection.magnitude > 0.1f)
+    {
+        // Hay input: verificar si puede rotar hacia donde quiere
+        if (isSliding)
+        {
+            Vector3 horizontalSlideDir = new Vector3(slideDirection.x, 0f, slideDirection.z).normalized;
+            float dotAgainstSlide = Vector3.Dot(inputMoveDirection, -horizontalSlideDir);
+            
+            // Si intenta mirar hacia arriba del slope
+            if (dotAgainstSlide > 0)
+            {
+                float playerStrength = maxSpeed;
+                float slideStrength = slideTargetSpeed;
+                float resistRatio = Mathf.Clamp01((playerStrength - slideStrength) / playerStrength);
+                
+                if (resistRatio <= 0)
+                {
+                    // No puede mirar hacia arriba, filtrar componente
+                    Vector3 perpendicularInput = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
+                    
+                    if (perpendicularInput.magnitude > 0.1f)
+                    {
+                        rotationDirection = perpendicularInput.normalized;
+                    }
+                    else
+                    {
+                        // Input es puramente hacia arriba, usar dirección del slide
+                        rotationDirection = horizontalSlideDir;
+                    }
+                }
+                else
+                {
+                    // Puede mirar parcialmente hacia arriba
+                    Vector3 uphillComponent = dotAgainstSlide * -horizontalSlideDir * resistRatio;
+                    Vector3 otherComponent = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
+                    rotationDirection = (uphillComponent + otherComponent).normalized;
+                }
+            }
+            else
+            {
+                // Mira hacia abajo o perpendicular, permitir
+                rotationDirection = inputMoveDirection;
+            }
+        }
+        else
+        {
+            // No está en slide, rotar libremente hacia el input
+            rotationDirection = inputMoveDirection;
+        }
+    }
+    else
+    {
+        // Sin input: rotar hacia donde se mueve
+        rotationDirection = moveDirection;
+    }
+    
+    if (rotationDirection.magnitude > 0.1f)
+    {
+        Quaternion targetRotation = Quaternion.LookRotation(rotationDirection);
+        
+        float speedFactor = Mathf.InverseLerp(0f, maxSpeed, currentSpeed);
+        speedFactor = Mathf.Clamp01(speedFactor);
+        
+        float currentRotationSpeed = Mathf.Lerp(rotationSpeedWhenSlow, rotationSpeed, speedFactor);
+        
+        float rotationStep = currentRotationSpeed * Time.deltaTime;
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationStep);
+    }
+}
 
     private void SpeedController()
     {
-        
-        float moveDirectionMultiplier = Mathf.Clamp(inputDirection.magnitude,0.1f,1f);
-        
+        float moveDirectionMultiplier = Mathf.Clamp(inputDirection.magnitude, 0.1f, 1f);
+    
+        // Si está deslizando, acelerar hacia la velocidad del slide
+        if (isSliding)
+        {
+            currentSpeed = Mathf.MoveTowards(currentSpeed, slideTargetSpeed, slideAcceleration * Time.deltaTime);
+            return;
+        }
+    
+        // Código normal cuando NO está deslizando
         if (grounded)
         {
             if (RisingSpeed)
@@ -274,7 +420,6 @@ public class PlayerController : MonoBehaviour
                 if (currentSpeed > minSpeed)
                 {
                     currentSpeed -= speedLose;
-                    // CAMBIO: Solo clampear si ya estás dentro del rango normal
                     if (currentSpeed <= maxSpeed)
                     {
                         currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
@@ -282,7 +427,7 @@ public class PlayerController : MonoBehaviour
                 }
             }
         }
-        else //if airborne
+        else
         {
             if (RisingSpeed)
             {
@@ -290,7 +435,7 @@ public class PlayerController : MonoBehaviour
                     currentSpeed -= speedLose;
                 else if (currentSpeed < maxSpeed)
                 {
-                    currentSpeed += (speedGain * moveDirectionMultiplier)/AirDivider;
+                    currentSpeed += (speedGain * moveDirectionMultiplier) / AirDivider;
                     currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
                 }
             }
@@ -299,7 +444,6 @@ public class PlayerController : MonoBehaviour
                 if (currentSpeed > minSpeed)
                 {
                     currentSpeed -= speedLose;
-                    // CAMBIO: Solo clampear si ya estás dentro del rango normal
                     if (currentSpeed <= maxSpeed)
                     {
                         currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);

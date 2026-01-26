@@ -129,9 +129,22 @@ public class OnPlayerCrouchEvent : PlayerEventBase
     public bool IsCrouching;
 }
 
+public class OnPlayerStopSlidingEvent : PlayerEventBase
+{
+}
+
 public class OnPlayerSlidingEvent : PlayerEventBase
 {
     public Vector3 SlideDirection;
+}
+
+public class OnPlayerSlideStateEvent : PlayerEventBase
+{
+    public bool IsSliding;
+    public float ControlMultiplier;
+    public Vector3 SlideDirection;
+    public float TargetSpeed; // Velocidad objetivo del slide
+    public float Acceleration; // Qué tan rápido alcanzar esa velocidad
 }
 
 // ============================================================================
