@@ -70,6 +70,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool DirectionChanged = false;
     [SerializeField] private bool isInHangTime = false;
     [SerializeField] private Vector3 inputMoveDirection = Vector3.zero;
+    [SerializeField] private bool ableToMove = true;
 
     /// <summary>
     /// PRIVATE VARIABLES
@@ -105,6 +106,9 @@ public class PlayerController : MonoBehaviour
         EventBus.Subscribe<OnRotatePlayerCommand>(OnRotatePlayer);
         EventBus.Subscribe<OnPlayerSlideStateEvent>(OnSlideState);
         EventBus.Subscribe<OnPlayerStopSlidingEvent>(OnStopSliding);
+
+        EventBus.Subscribe<onDialogueOpen>(open => ableToMove = false);
+        EventBus.Subscribe<onDialogueClose>(open => ableToMove = true);
     }
 
     void OnDisable()
@@ -124,6 +128,9 @@ public class PlayerController : MonoBehaviour
         EventBus.Unsubscribe<OnRotatePlayerCommand>(OnRotatePlayer);
         EventBus.Unsubscribe<OnPlayerSlideStateEvent>(OnSlideState);
         EventBus.Unsubscribe<OnPlayerStopSlidingEvent>(OnStopSliding);
+        
+        EventBus.Unsubscribe<onDialogueOpen>(open => ableToMove = false);
+        EventBus.Unsubscribe<onDialogueClose>(open => ableToMove = true);
     }
     
     private void OnSlideState(OnPlayerSlideStateEvent ev)
@@ -174,11 +181,14 @@ public class PlayerController : MonoBehaviour
     
     private void Update()
     {
+        GravityHandler();
+        if (!ableToMove) return;
+        
         SpeedController();
         CalculateCameraRelativeMovement();
         RotatePlayer();
         MovementController();
-        GravityHandler();
+        
     }
 
     private void OnGrounded(OnPlayerGroundedEvent ev)

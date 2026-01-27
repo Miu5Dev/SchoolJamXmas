@@ -1,7 +1,7 @@
 public interface Interactable
 {
-    public void Interact(PlayerControllerOld player)
+    public void Interact(PlayerController player)
     {
-        
+
     }
 }
