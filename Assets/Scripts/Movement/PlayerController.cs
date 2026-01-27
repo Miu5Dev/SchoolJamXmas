@@ -27,12 +27,6 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpCooldown = 0.2f;
     [SerializeField] private float noSlopeProjectionTime = 0.15f;
     
-    [Header("Ramp Launch Settings")]
-    [SerializeField] private float minSpeedToLaunch = 6f;
-    [SerializeField] private float minAngleToLaunch = 20f;
-    [SerializeField] private float launchVerticalMultiplier = 0.5f;
-    [SerializeField] private float launchCooldown = 0.3f;
-    
     [Header("On Slope Movement Rotation Settings")]
     [SerializeField] private float rotationSmoothSpeed = 8f;
     
@@ -76,14 +70,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool DirectionChanged = false;
     [SerializeField] private bool isInHangTime = false;
     [SerializeField] private Vector3 inputMoveDirection = Vector3.zero;
-    [SerializeField] private bool isLaunching = false;
 
     /// <summary>
     /// PRIVATE VARIABLES
     /// </summary>
     private bool RisingSpeed = false;
     private float lastJumpTime = -1f;
-    private float lastLaunchTime = -1f;
 
     
     void Awake()
@@ -192,7 +184,6 @@ public class PlayerController : MonoBehaviour
     private void OnGrounded(OnPlayerGroundedEvent ev)
     {
         grounded = true;
-        isLaunching = false;
     }
 
     private void OnAirborne(OnPlayerAirborneEvent ev)
@@ -505,53 +496,17 @@ public class PlayerController : MonoBehaviour
         Vector3 finalMoveDirection = moveDirection;
     
         bool recentlyJumped = Time.time < lastJumpTime + noSlopeProjectionTime;
-        bool recentlyLaunched = Time.time < lastLaunchTime + launchCooldown;
         
-        // Reset launching state
-        isLaunching = false;
     
         // Solo procesar slopes si estamos grounded y no saltamos/lanzamos recientemente
-        if (SlopeNormal != Vector3.zero && SlopeNormal != Vector3.up && grounded && !recentlyJumped && !recentlyLaunched)
+        if (SlopeNormal != Vector3.zero && SlopeNormal != Vector3.up && grounded && !recentlyJumped)
         {
             // Calcular si estamos subiendo la rampa
             Vector3 slopeUpDirection = Vector3.ProjectOnPlane(Vector3.up, SlopeNormal).normalized;
             float uphillDot = Vector3.Dot(moveDirection, slopeUpDirection);
             bool isGoingUphill = uphillDot > 0.3f;
             
-            // === LÓGICA DE LANZAMIENTO ===
-            if (isGoingUphill && currentSpeed >= minSpeedToLaunch && currentSlopeAngle >= minAngleToLaunch)
-            {
-                // ¡DESPEGAR!
-                isLaunching = true;
-                lastLaunchTime = Time.time;
-                
-                // Calcular fuerza de lanzamiento basada en velocidad y ángulo
-                // A mayor velocidad y mayor ángulo, más alto el lanzamiento
-                float angleMultiplier = Mathf.InverseLerp(minAngleToLaunch, 60f, currentSlopeAngle);
-                float speedMultiplier = Mathf.InverseLerp(minSpeedToLaunch, maxSpeed * 1.5f, currentSpeed);
-                
-                float launchForce = currentSpeed * launchVerticalMultiplier * (1f + angleMultiplier) * (0.5f + speedMultiplier * 0.5f);
-                
-                // Solo aplicar si no estamos ya subiendo significativamente
-                if (verticalVelocity <= 1f)
-                {
-                    verticalVelocity = launchForce;
-                    grounded = false;
-                    
-                    // Emitir evento de lanzamiento
-                    EventBus.Raise<OnPlayerLaunchEvent>(new OnPlayerLaunchEvent()
-                    {
-                        Player = gameObject,
-                        LaunchVelocity = launchForce,
-                        LaunchDirection = moveDirection,
-                        SlopeAngle = currentSlopeAngle
-                    });
-                }
-                
-                // NO proyectar sobre la superficie - mantener dirección horizontal
-                finalMoveDirection = moveDirection;
-            }
-            else if (moveDirection.magnitude > 0.1f)
+            if (moveDirection.magnitude > 0.1f)
             {
                 // Comportamiento normal - proyectar sobre la pendiente para pegarse al suelo
                 finalMoveDirection = Vector3.ProjectOnPlane(moveDirection, SlopeNormal);
@@ -647,9 +602,8 @@ public class PlayerController : MonoBehaviour
     private void GravityHandler()
     {
         bool canLand = Time.time > lastJumpTime + jumpCooldown;
-        bool canLandAfterLaunch = Time.time > lastLaunchTime + launchCooldown;
         
-        if (grounded && verticalVelocity < 0 && canLand && canLandAfterLaunch)
+        if (grounded && verticalVelocity < 0 && canLand)
         {
             verticalVelocity = Mathf.Clamp(verticalVelocity, -9.81f, 1000);
         }
