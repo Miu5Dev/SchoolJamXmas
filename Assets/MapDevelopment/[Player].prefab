@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 8612995946932360502}
   m_Layer: 0
   m_Name: Player-Camera
-  m_TagString: Untagged
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -303,6 +303,7 @@ GameObject:
   - component: {fileID: 4659698018580108088}
   - component: {fileID: 3119418225457391293}
   - component: {fileID: 6264370258122366137}
+  - component: {fileID: 7464368934554102246}
   m_Layer: 7
   m_Name: Bean
   m_TagString: Player
@@ -401,6 +402,7 @@ MonoBehaviour:
   maxSpeed: 8
   maxCrouchingSpeed: 3
   AirDivider: 8
+  CrouchDivider: 8
   jumpCooldown: 0.2
   noSlopeProjectionTime: 0.15
   rotationSmoothSpeed: 8
@@ -412,9 +414,11 @@ MonoBehaviour:
   directionChangePenalty: 0.5
   directionChangeThreshold: 90
   isSliding: 0
+  isBeingPushedDown: 0
   slideControlMultiplier: 1
   slideDirection: {x: 0, y: 0, z: 0}
   slideSpeedGain: 0
+  slideMomentumDecay: 0
   slideMaxSpeed: 15
   Gravity: -20
   isCrouching: 0
@@ -425,11 +429,13 @@ MonoBehaviour:
   targetMoveDirection: {x: 0, y: 0, z: 0}
   inputDirection: {x: 0, y: 0}
   SlopeNormal: {x: 0, y: 0, z: 0}
+  currentSlopeAngle: 0
   verticalVelocity: 0
   grounded: 0
   DirectionChanged: 0
   isInHangTime: 0
   inputMoveDirection: {x: 0, y: 0, z: 0}
+  ableToMove: 0
 --- !u!143 &9099076376034806399
 CharacterController:
   m_ObjectHideFlags: 0
@@ -476,6 +482,7 @@ MonoBehaviour:
     m_Bits: 127
   minDistanceToGround: 0.5
   coyoteTime: 0.15
+  launchIgnoreGroundTime: 0.25
   slideTag: Slide
   minSlideAngle: 46
   slopeNormal: {x: 0, y: 0, z: 0}
@@ -486,6 +493,7 @@ MonoBehaviour:
   slideHitCount: 0
   totalHitCount: 0
   allHitsAreSlide: 0
+  ignoringGroundAfterLaunch: 0
 --- !u!114 &3119418225457391293
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -561,12 +569,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   minSlideAngle: 65
   slideTag: Slide
-  slideSpeedGain: 5
+  slideGravityForce: 15
   maxSlideSpeed: 100
+  minSpeedToResistSlide: 3
+  momentumDecayRate: 8
+  slideAccelerationRate: 5
   slideActivationDelay: 0.15
-  controlWhileSliding: 0.6
+  controlWhileSliding: 0.15
   directionSmoothSpeed: 5
-  isSliding: 0
+  isOnSlide: 0
+  isBeingPushedDown: 0
   currentSlopeAngle: 0
   slideDirection: {x: 0, y: 0, z: 0}
   smoothedSlideDirection: {x: 0, y: 0, z: 0}
@@ -576,6 +588,22 @@ MonoBehaviour:
   allHitsAreSlide: 0
   slideContactTime: 0
   slideDelayPassed: 0
+  currentPlayerSpeed: 0
+  currentPlayerDirection: {x: 0, y: 0, z: 0}
+  dotWithSlide: 0
+--- !u!114 &7464368934554102246
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4160294912610566112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b1fa3df1df24f746a7226d35e4e60c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialogueUI: {fileID: 0}
 --- !u!1 &6450142505159232541
 GameObject:
   m_ObjectHideFlags: 0
