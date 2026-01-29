@@ -64,10 +64,10 @@ public class OnPlayerStopEvent : PlayerEventBase
 public class OnDirectionChangeEvent
 {
     public GameObject Player;
-    public float AngleChange; // Cuántos grados cambió
-    public Vector3 OldDirection; // Dirección anterior
-    public Vector3 NewDirection; // Nueva dirección
-    public float PenaltyFactor; // 0-1, qué tanto se penalizó
+    public float AngleChange;
+    public Vector3 OldDirection;
+    public Vector3 NewDirection;
+    public float PenaltyFactor;
 }
 
 // ============================================================================
@@ -96,7 +96,7 @@ public class OnExecuteJumpCommand : PlayerEventBase
 
 public class OnApplyJumpForceCommand : PlayerEventBase
 {
-    public float Force; // Fuerza vertical a aplicar
+    public float Force;
 }
 
 public class OnPlayerGroundedEvent : PlayerEventBase
@@ -111,13 +111,24 @@ public class OnSetHangTimeState : PlayerEventBase
 
 public class OnRotatePlayerCommand : PlayerEventBase
 {
-    public float Degrees; // Grados a rotar (180 para backflip)
-    public bool InvertMovementDirection; // Si debe invertir la dirección del movimiento
+    public float Degrees;
+    public bool InvertMovementDirection;
 }
 
 public class OnPlayerAirborneEvent : PlayerEventBase
 {
     public float YHeight;
+}
+
+// ============================================================================
+// PLAYER LAUNCH EVENT (NUEVO)
+// ============================================================================
+
+public class OnPlayerLaunchEvent : PlayerEventBase
+{
+    public float LaunchVelocity;
+    public Vector3 LaunchDirection;
+    public float SlopeAngle;
 }
 
 // ============================================================================
@@ -138,13 +149,16 @@ public class OnPlayerSlidingEvent : PlayerEventBase
     public Vector3 SlideDirection;
 }
 
-public class OnPlayerSlideStateEvent : PlayerEventBase
+public class OnPlayerSlideStateEvent
 {
+    public GameObject Player;
     public bool IsSliding;
+    public bool IsBeingPushedDown;
     public float ControlMultiplier;
     public Vector3 SlideDirection;
-    public float TargetSpeedGain; // Cuánto gana por segundo
-    public float MaxSlideSpeed; // Velocidad máxima del slide
+    public float TargetSpeedGain;
+    public float MomentumDecay;
+    public float MaxSlideSpeed;
 }
 
 // ============================================================================
@@ -160,9 +174,10 @@ public class OnPlayerSlopeEvent : PlayerEventBase
     public string GroundTag;
     public Vector3 CombinedSlideDirection;
     public int SlideHitCount;
-    public int TotalHitCount; // NUEVO: Total de hits activos
-    public bool AllHitsAreSlide; // NUEVO: Si todos los hits son slide
+    public int TotalHitCount;
+    public bool AllHitsAreSlide;
 }
+
 // ============================================================================
 // PLAYER GROUND POUND EVENTS
 // ============================================================================
@@ -271,5 +286,6 @@ public enum PlayerState
     LedgeGrabbing,
     LedgeClimbing,
     Landing,
-    HardLanding
+    HardLanding,
+    Launching // NUEVO
 }

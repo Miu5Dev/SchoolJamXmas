@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using TMPro;
 using System.Collections;
@@ -6,7 +7,8 @@ public class DialogueUI : MonoBehaviour
 {
     [SerializeField] private GameObject dialogueBox;
     [SerializeField] private TMP_Text textLabel;
-    
+
+    [SerializeField] private bool actionKey;
     
     public bool IsOpen { get; private set; }
     
@@ -17,20 +19,38 @@ public class DialogueUI : MonoBehaviour
         typewriterEffect = GetComponent<TypewriterEffect>();
         responseHandler = GetComponent<ResponseHandler>();
         CloseDialogueBox();
+        
+        EventBus.Subscribe<OnActionInputEvent>(onAction);
     }
     
     public void showDialogue(DialogueObject dialogueObject)
     {
         IsOpen = true;
+        if (!dialogueBox.active)
+        {
+            EventBus.Raise<onDialogueOpen>(new onDialogueOpen());
+        }
         dialogueBox.SetActive(true);
         StartCoroutine(StepThroughDilaogue(dialogueObject));
+    }
+
+
+    public void onAction(OnActionInputEvent inputEvent)
+    {
+        actionKey = inputEvent.pressed;
     }
 
     public void AddResponseEvents(ResponseEvent[] responseEvents)
     {
         responseHandler.AddResponse(responseEvents);
     }
-    
+
+    public void LateUpdate()
+    {
+        if(actionKey)
+        actionKey = false;
+    }
+
     private IEnumerator StepThroughDilaogue(DialogueObject dialogueObject)
     {
 
@@ -46,7 +66,7 @@ public class DialogueUI : MonoBehaviour
 
             yield return null;
             
-            yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Space));
+            yield return new WaitUntil(() => actionKey);
         }
 
         if (dialogueObject.HasResponses)
@@ -67,7 +87,7 @@ public class DialogueUI : MonoBehaviour
         {
             yield return null;
 
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (actionKey)
             {
                 typewriterEffect.Stop();
             }
@@ -79,5 +99,6 @@ public class DialogueUI : MonoBehaviour
         IsOpen = false;
         dialogueBox.SetActive(false);
         textLabel.text = string.Empty;
+        EventBus.Raise<onDialogueClose>(new onDialogueClose() );
     }
 }

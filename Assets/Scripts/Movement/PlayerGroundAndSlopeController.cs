@@ -16,6 +16,9 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
     [SerializeField] private float minDistanceToGround;
     [SerializeField] private float coyoteTime = 0.15f;
     
+    [Header("Launch Config")]
+    [SerializeField] private float launchIgnoreGroundTime = 0.25f;
+    
     [Header("Slide Detection")]
     [SerializeField] private string slideTag = "Slide";
     [SerializeField] private float minSlideAngle = 46f;
@@ -27,19 +30,21 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
     [SerializeField] private GameObject currentGroundObject;
     [SerializeField] private Vector3 combinedSlideDirection;
     [SerializeField] private int slideHitCount;
-    [SerializeField] private int totalHitCount; // NUEVO
-    [SerializeField] private bool allHitsAreSlide; // NUEVO
+    [SerializeField] private int totalHitCount;
+    [SerializeField] private bool allHitsAreSlide;
+    [SerializeField] private bool ignoringGroundAfterLaunch;
     
     private float lastHitAngle;
     private RaycastHit[] hit = new RaycastHit[5];
     private float lastGroundedTime = 0f;
+    private float lastLaunchTime = -1f;
     
     private float DefaultDetectionLenght;
     private float DefaultMinDistanceToGround;
     
     private GameObject lastGroundObject;
     private Vector3 lastCombinedDirection;
-    private bool lastAllHitsAreSlide; // NUEVO
+    private bool lastAllHitsAreSlide;
 
     public void Awake()
     {
@@ -47,6 +52,21 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
         
         DefaultDetectionLenght = DetectionLenght;
         DefaultMinDistanceToGround = minDistanceToGround;
+    }
+    
+    void OnEnable()
+    {
+        EventBus.Subscribe<OnPlayerLaunchEvent>(OnPlayerLaunch);
+    }
+    
+    void OnDisable()
+    {
+        EventBus.Unsubscribe<OnPlayerLaunchEvent>(OnPlayerLaunch);
+    }
+    
+    private void OnPlayerLaunch(OnPlayerLaunchEvent ev)
+    {
+        lastLaunchTime = Time.time;
     }
 
     public void Update()
@@ -70,20 +90,20 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
         lastHitAngle = slopeAngle;
         lastGroundObject = currentGroundObject;
         lastCombinedDirection = combinedSlideDirection;
-        lastAllHitsAreSlide = allHitsAreSlide; // NUEVO
+        lastAllHitsAreSlide = allHitsAreSlide;
     }
 
     private void CalculateCombinedSlideDirection()
     {
         combinedSlideDirection = Vector3.zero;
         slideHitCount = 0;
-        totalHitCount = 0; // NUEVO
+        totalHitCount = 0;
         
         for (int i = 0; i < hit.Length; i++)
         {
             if (hit[i].collider == null) continue;
             
-            totalHitCount++; // NUEVO: Contar todos los hits
+            totalHitCount++;
             
             bool isSlideByTag = hit[i].collider.CompareTag(slideTag);
             float hitAngle = Vector3.Angle(hit[i].normal, Vector3.up);
@@ -100,7 +120,6 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
             }
         }
         
-        // NUEVO: Verificar si TODOS los hits son slide
         allHitsAreSlide = totalHitCount > 0 && slideHitCount == totalHitCount;
         
         if (slideHitCount > 0 && combinedSlideDirection.magnitude > 0.01f)
@@ -132,7 +151,7 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
     {
         bool groundChanged = currentGroundObject != lastGroundObject;
         bool directionChanged = Vector3.Distance(combinedSlideDirection, lastCombinedDirection) > 0.01f;
-        bool allHitsChanged = allHitsAreSlide != lastAllHitsAreSlide; // NUEVO
+        bool allHitsChanged = allHitsAreSlide != lastAllHitsAreSlide;
         
         if (lastHitAngle == slopeAngle && !groundChanged && !directionChanged && !allHitsChanged) return;
         
@@ -148,8 +167,8 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
             GroundTag = groundTag,
             CombinedSlideDirection = combinedSlideDirection,
             SlideHitCount = slideHitCount,
-            TotalHitCount = totalHitCount, // NUEVO
-            AllHitsAreSlide = allHitsAreSlide // NUEVO
+            TotalHitCount = totalHitCount,
+            AllHitsAreSlide = allHitsAreSlide
         });
     }
     
@@ -199,8 +218,26 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
     private void GroundedDetector()
     {
         bool wasGrounded = grounded;
+        
+        // === NUEVO: Ignorar detección de ground después de un lanzamiento ===
+        ignoringGroundAfterLaunch = Time.time < lastLaunchTime + launchIgnoreGroundTime;
+        
+        if (ignoringGroundAfterLaunch)
+        {
+            grounded = false;
+            if (wasGrounded)
+            {
+                EventBus.Raise<OnPlayerAirborneEvent>(new OnPlayerAirborneEvent()
+                {
+                    Player = this.gameObject,
+                    YHeight = this.transform.position.y,
+                });
+            }
+            return;
+        }
 
-        if (player.GetComponent<PlayerController>().verticalVelocity > 1f)
+        // Verificar velocidad vertical positiva (subiendo)
+        if (player.GetComponent<PlayerController>().verticalVelocity > 0.5f)
         {
             grounded = false;
             if (wasGrounded)
@@ -273,7 +310,6 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
         {
             if (hit != null && i < hit.Length && hit[i].transform != null)
             {
-                // NUEVO: Color según si es slide o no
                 bool isSlide = hit[i].collider.CompareTag(slideTag) || 
                                Vector3.Angle(hit[i].normal, Vector3.up) >= minSlideAngle;
                 Gizmos.color = isSlide ? Color.yellow : Color.green;
@@ -290,8 +326,15 @@ public class PlayerGroundAndSlopeController : MonoBehaviour
         
         if (combinedSlideDirection.magnitude > 0.1f)
         {
-            Gizmos.color = allHitsAreSlide ? Color.cyan : Color.gray; // NUEVO: Gris si no todos son slide
+            Gizmos.color = allHitsAreSlide ? Color.cyan : Color.gray;
             Gizmos.DrawRay(player.position, combinedSlideDirection * 2f);
+        }
+        
+        // Gizmo para mostrar cuando está ignorando ground por lanzamiento
+        if (ignoringGroundAfterLaunch)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(player.position + Vector3.up * 0.5f, 0.3f);
         }
     }
 }
