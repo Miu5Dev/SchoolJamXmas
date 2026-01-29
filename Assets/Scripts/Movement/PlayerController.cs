@@ -34,6 +34,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float rotationSpeed = 720f;
     [SerializeField] private float rotationSpeedWhenSlow = 360f;
     [SerializeField] private float minimumSpeedToRotate = 0.1f;
+    [SerializeField] private float rotationStateSmoothing = 5f; // NUEVO - Ajusta este valor
+
     
     [Header("Movement Style")]
     [SerializeField] private float movementBlendSpeed = 8f;
@@ -71,7 +73,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool isInHangTime = false;
     [SerializeField] private Vector3 inputMoveDirection = Vector3.zero;
     [SerializeField] private bool ableToMove = true;
-    
+    [SerializeField] private float currentRotationState = 1f; // NUEVO
 
     /// <summary>
     /// PRIVATE VARIABLES
@@ -489,18 +491,23 @@ public class PlayerController : MonoBehaviour
     {
         if (moveDirection.magnitude > 0.1)
         {
-            // Calcular el estado de rotación gradual (0 = izquierda, 1 = recto, 2 = derecha)
-            float rotationState = 1f;
-            
+            // Calcular el estado de rotación objetivo
+            float targetRotationState = 1f;
+
             if (inputMoveDirection.magnitude > 0.1f)
             {
-                float signedAngle = Vector3.SignedAngle(transform.forward, inputMoveDirection, Vector3.up);
-                float maxAngle = 90f;
-                
-                // Normalizar: -90° → 0, 0° → 1, +90° → 2
-                rotationState = Mathf.Clamp((signedAngle + maxAngle) / (maxAngle * 2f), 0f, 1f) * 2f;
+                // Transformar el input al espacio local del personaje
+                Vector3 localInputDir = transform.InverseTransformDirection(inputMoveDirection);
+
+                // localInputDir.x es positivo = input a la derecha del personaje
+                // localInputDir.x es negativo = input a la izquierda del personaje
+                // Normalizar a rango 0-2
+                targetRotationState = 1f + Mathf.Clamp(localInputDir.x, -1f, 1f);
             }
-            
+
+            // Transición suave hacia el valor objetivo
+            currentRotationState = Mathf.Lerp(currentRotationState, targetRotationState, rotationStateSmoothing * Time.deltaTime);
+
             EventBus.Raise<OnPlayerMoveEvent>(new OnPlayerMoveEvent()
             {
                 Player = this.gameObject,
@@ -508,7 +515,7 @@ public class PlayerController : MonoBehaviour
                 Rotation = Quaternion.LookRotation(moveDirection),
                 speed = currentSpeed,
                 isCrouching = isCrouching && grounded,
-                rotationState = rotationState
+                rotationState = currentRotationState
             });
         }
 

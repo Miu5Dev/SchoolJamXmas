@@ -3,7 +3,7 @@ using UnityEngine;
 public class AnimationTriggers : MonoBehaviour
 {
     Animator animator;
-
+    private float speed;
     private void Awake()
     {
         animator = GetComponent<Animator>();
@@ -11,23 +11,35 @@ public class AnimationTriggers : MonoBehaviour
 
     private void OnEnable()
     {
-        EventBus.Subscribe<OnMoveInputEvent>(Moving);
-        EventBus.Subscribe<OnPlayerStopEvent>(OnPlayerStop);
+        EventBus.Subscribe<OnPlayerMoveEvent>(Moving);
+        EventBus.Subscribe<OnPlayerSlideStateEvent>(OnSlideState);
     }
 
     private void OnDisable()
     {
-        EventBus.Unsubscribe<OnMoveInputEvent>(Moving);
-        EventBus.Unsubscribe<OnPlayerStopEvent>(OnPlayerStop);
+        EventBus.Unsubscribe<OnPlayerMoveEvent>(Moving);
+        EventBus.Subscribe<OnPlayerSlideStateEvent>(OnSlideState);
     }
 
-    private void Moving(OnMoveInputEvent ev)
+    private void Moving(OnPlayerMoveEvent ev)
     {
+        
+        animator.SetFloat("Direction", ev.rotationState);
+        
+        if (ev.speed <= 0.5)
+        {
+            animator.SetBool("moving", false);
+            speed = ev.speed;
+        }
+        else{
         animator.SetBool("moving", true);
+        }
+        
     }
 
-    private void OnPlayerStop(OnPlayerStopEvent ev)
+    private void OnSlideState(OnPlayerSlideStateEvent ev)
     {
-        animator.SetBool("moving", false);
+        animator.SetBool("sliding", true);
     }
+    
 }
