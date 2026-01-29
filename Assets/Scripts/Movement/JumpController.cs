@@ -66,6 +66,7 @@ public class JumpController : MonoBehaviour
     [SerializeField] private float sharpTurnTime = -1f;
     [SerializeField] private float sharpTurnAngle = 0f;
     [SerializeField] private bool backflipConsumed = false;
+    [SerializeField] private bool ableToMove = false;
     
     void OnEnable()
     {
@@ -78,6 +79,9 @@ public class JumpController : MonoBehaviour
         EventBus.Subscribe<OnPlayerMoveEvent>(OnPlayerMove);
         EventBus.Subscribe<OnPlayerLandEvent>(OnPlayerLand);
         EventBus.Subscribe<OnDirectionChangeEvent>(OnDirectionChange);
+        
+        EventBus.Subscribe<onDialogueOpen>(open => ableToMove = false);
+        EventBus.Subscribe<onDialogueClose>(open => ableToMove = true);
     }
     
     void OnDisable()
@@ -91,6 +95,9 @@ public class JumpController : MonoBehaviour
         EventBus.Unsubscribe<OnPlayerMoveEvent>(OnPlayerMove);
         EventBus.Unsubscribe<OnPlayerLandEvent>(OnPlayerLand);
         EventBus.Unsubscribe<OnDirectionChangeEvent>(OnDirectionChange);
+        
+        EventBus.Unsubscribe<onDialogueOpen>(open => ableToMove = false);
+        EventBus.Unsubscribe<onDialogueClose>(open => ableToMove = true);
     }
     
     private void OnGrounded(OnPlayerGroundedEvent ev)
@@ -350,6 +357,8 @@ public class JumpController : MonoBehaviour
     
     private void HandleGroundDive()
     {
+        if(!ableToMove) return;
+        
         // NUEVO: Verificar que no esté consumido
         if (isAction && !actionConsumed && grounded && !isDiving && groundDive != null && Time.time > lastDiveTime + delayBetweenJumps)
         {
