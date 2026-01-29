@@ -489,13 +489,26 @@ public class PlayerController : MonoBehaviour
     {
         if (moveDirection.magnitude > 0.1)
         {
+            // Calcular el estado de rotación gradual (0 = izquierda, 1 = recto, 2 = derecha)
+            float rotationState = 1f;
+            
+            if (inputMoveDirection.magnitude > 0.1f)
+            {
+                float signedAngle = Vector3.SignedAngle(transform.forward, inputMoveDirection, Vector3.up);
+                float maxAngle = 90f;
+                
+                // Normalizar: -90° → 0, 0° → 1, +90° → 2
+                rotationState = Mathf.Clamp((signedAngle + maxAngle) / (maxAngle * 2f), 0f, 1f) * 2f;
+            }
+            
             EventBus.Raise<OnPlayerMoveEvent>(new OnPlayerMoveEvent()
             {
                 Player = this.gameObject,
                 Direction = new Vector2(moveDirection.x, moveDirection.z),
                 Rotation = Quaternion.LookRotation(moveDirection),
                 speed = currentSpeed,
-                isCrouching = isCrouching && grounded
+                isCrouching = isCrouching && grounded,
+                rotationState = rotationState
             });
         }
 
@@ -516,25 +529,22 @@ public class PlayerController : MonoBehaviour
         }
 
         Vector3 finalMoveDirection = moveDirection;
-    
+
         bool recentlyJumped = Time.time < lastJumpTime + noSlopeProjectionTime;
         
-    
-        // Solo procesar slopes si estamos grounded y no saltamos/lanzamos recientemente
+
         if (SlopeNormal != Vector3.zero && SlopeNormal != Vector3.up && grounded && !recentlyJumped)
         {
-            // Calcular si estamos subiendo la rampa
             Vector3 slopeUpDirection = Vector3.ProjectOnPlane(Vector3.up, SlopeNormal).normalized;
             float uphillDot = Vector3.Dot(moveDirection, slopeUpDirection);
             bool isGoingUphill = uphillDot > 0.3f;
             
             if (moveDirection.magnitude > 0.1f)
             {
-                // Comportamiento normal - proyectar sobre la pendiente para pegarse al suelo
                 finalMoveDirection = Vector3.ProjectOnPlane(moveDirection, SlopeNormal);
             }
         }
-    
+
         controller.Move(finalMoveDirection * (currentSpeed * Time.deltaTime));
     }
 
