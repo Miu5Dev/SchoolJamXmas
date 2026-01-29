@@ -71,12 +71,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool isInHangTime = false;
     [SerializeField] private Vector3 inputMoveDirection = Vector3.zero;
     [SerializeField] private bool ableToMove = true;
+    
 
     /// <summary>
     /// PRIVATE VARIABLES
     /// </summary>
     private bool RisingSpeed = false;
     private float lastJumpTime = -1f;
+    private bool StopEventSended = false;
 
     
     void Awake()
@@ -182,8 +184,8 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         GravityHandler();
-        if (!ableToMove) return;
         
+        if (!ableToMove) return;
         SpeedController();
         CalculateCameraRelativeMovement();
         RotatePlayer();
@@ -495,14 +497,23 @@ public class PlayerController : MonoBehaviour
                 speed = currentSpeed,
             });
         }
-        else if (moveDirection.magnitude < 0.1 && currentSpeed < minSpeed)
+
+        if (inputDirection.magnitude > 0.1 && currentSpeed > minSpeed)
         {
-            EventBus.Raise<OnPlayerStopEvent>(new OnPlayerStopEvent()
-            {
-                Player = this.gameObject
-            });
+            StopEventSended = false;
         }
-    
+        
+        
+        if (inputDirection.magnitude < 0.1 && currentSpeed <= minSpeed && !StopEventSended)
+        {
+                Debug.Log("Stopped");
+                EventBus.Raise<OnPlayerStopEvent>(new OnPlayerStopEvent()
+                {
+                    Player = this.gameObject
+                });
+                StopEventSended = true;
+        }
+
         Vector3 finalMoveDirection = moveDirection;
     
         bool recentlyJumped = Time.time < lastJumpTime + noSlopeProjectionTime;
