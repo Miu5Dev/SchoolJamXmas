@@ -184,8 +184,8 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         GravityHandler();
-        if (!ableToMove) return;
         
+        if (!ableToMove) return;
         SpeedController();
         CalculateCameraRelativeMovement();
         RotatePlayer();
