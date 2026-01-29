@@ -7,6 +7,7 @@ public class GameManager : MonoBehaviour
    [SerializeField]public int requiredCoins = 0;
    [SerializeField]public int sleighPartsCollected = 0;
    [SerializeField]public int requiredSleightParts = 4;
+   [SerializeField]public int CurrentLives = 3;
    
    public static GameManager Instance;
 
@@ -51,7 +52,8 @@ public class GameManager : MonoBehaviour
    
    public void goToScene(int sceneID)
    {
-      SceneManager.LoadScene(sceneID);
+      FadeManager.Instance.LoadSceneWithFade(sceneID);
+
    }
 
 }
