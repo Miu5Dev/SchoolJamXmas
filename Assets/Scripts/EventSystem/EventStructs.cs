@@ -53,6 +53,7 @@ public class OnPlayerMoveEvent : PlayerEventBase
     public Vector3 Position;
     public Quaternion Rotation;
     public Vector2 Direction;
+    public bool isCrouching;
     
     public float speed;
 }
@@ -73,14 +74,6 @@ public class OnDirectionChangeEvent
 // ============================================================================
 // PLAYER JUMP EVENTS
 // ============================================================================
-
-public class OnPlayerJumpEvent : PlayerEventBase
-{
-    public JumpType JumpType;
-    public float JumpForce;
-
-    public float accelerationMultiplier;
-}
 
 public class OnPlayerLandEvent : PlayerEventBase
 {
@@ -135,18 +128,8 @@ public class OnPlayerLaunchEvent : PlayerEventBase
 // PLAYER CROUCH AND SLIDE EVENTS
 // ============================================================================
 
-public class OnPlayerCrouchEvent : PlayerEventBase
-{
-    public bool IsCrouching;
-}
-
 public class OnPlayerStopSlidingEvent : PlayerEventBase
 {
-}
-
-public class OnPlayerSlidingEvent : PlayerEventBase
-{
-    public Vector3 SlideDirection;
 }
 
 public class OnPlayerSlideStateEvent
@@ -192,62 +175,6 @@ public class OnPlayerDiveEvent : PlayerEventBase
     
 }
 
-// ============================================================================
-// PLAYER LEDGE GRAB EVENTS
-// ============================================================================
-
-public class OnPlayerLedgeGrabEvent : PlayerEventBase
-{
-    public bool IsGrabbing;
-    public Vector3 LedgePosition;
-    public Vector3 LedgeNormal;
-}
-
-public class OnPlayerLedgeMoveEvent : PlayerEventBase
-{
-    public float MoveDirection;
-    public Vector3 NewPosition;
-}
-
-public class OnPlayerLedgeClimbEvent : PlayerEventBase
-{
-    
-}
-
-// ============================================================================
-// PLAYER INTERACT EVENT
-// ============================================================================
-
-public class OnPlayerInteractEvent : PlayerEventBase
-{
-    public GameObject InteractiveObject;
-}
-
-// ============================================================================
-// PLAYER DAMAGE EVENTS
-// ============================================================================
-
-public class OnPlayerGetDamageEvent : PlayerEventBase
-{
-    public int Damage;
-    public GameObject Attacker;
-}
-
-public class OnPlayerDealDamageEvent : PlayerEventBase
-{
-    public int Damage;
-    public GameObject DamageReceiver;
-}
-
-// ============================================================================
-// PLAYER STATE CHANGE EVENT (General purpose for animations)
-// ============================================================================
-
-public class OnPlayerStateChangeEvent : PlayerEventBase
-{
-    public PlayerState PreviousState;
-    public PlayerState NewState;
-}
 
 // ============================================================================
 // ENUMS
@@ -264,28 +191,4 @@ public enum JumpType
     GroundPound,
     Dive,
     GroundDive,
-}
-
-public enum PlayerState
-{
-    Idle,
-    Walking,
-    Running,
-    Crouching,
-    CrouchWalking,
-    CrouchSliding,
-    SlopeSliding,
-    Jumping,
-    DoubleJumping,
-    TripleJumping,
-    LongJumping,
-    Backflipping,
-    Diving,
-    GroundPounding,
-    Falling,
-    LedgeGrabbing,
-    LedgeClimbing,
-    Landing,
-    HardLanding,
-    Launching // NUEVO
 }
