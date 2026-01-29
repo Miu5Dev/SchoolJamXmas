@@ -495,6 +495,7 @@ public class PlayerController : MonoBehaviour
                 Direction = new Vector2(moveDirection.x, moveDirection.z),
                 Rotation = Quaternion.LookRotation(moveDirection),
                 speed = currentSpeed,
+                isCrouching = isCrouching && grounded
             });
         }
 
