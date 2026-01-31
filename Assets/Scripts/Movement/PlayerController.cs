@@ -18,7 +18,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float currentSpeed = 1.0f;
     [SerializeField] private float speedGain = 0.2f;
     [SerializeField] private float speedLose = 0.05f;
-    [SerializeField] private float maxSpeed = 8.0f;
+    [SerializeField] private float maxSpeed = 16f;
     [SerializeField] private float maxCrouchingSpeed = 8.0f;
     [SerializeField] private float AirDivider = 8f;
     [SerializeField] private float CrouchDivider = 8f;

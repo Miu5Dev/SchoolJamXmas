@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: DoubleJump
   m_EditorClassIdentifier: 
   jumpType: 1
-  jumpForce: 4
+  jumpForce: 7
   extraSpeed: 6
   hangTime: 0
   condition: 0

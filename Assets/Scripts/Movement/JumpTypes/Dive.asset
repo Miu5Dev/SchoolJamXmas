@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   jumpType: 7
   jumpForce: 1.5
-  extraSpeed: 40
+  extraSpeed: 50
   hangTime: 0
   condition: 1
   customCooldown: 0.5
