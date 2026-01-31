@@ -24,4 +24,6 @@ MonoBehaviour:
   - If you're really collecting these things, you'd better move fast before the ground
     decides to swallow 'em.
   - Good luck out there. Try not to become charcoal
-  responses: []
+  responses:
+  - responseText: okay
+    dialogueObject: {fileID: 0}

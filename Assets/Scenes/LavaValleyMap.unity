@@ -6404,10 +6404,58 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 8
       objectReference: {fileID: 0}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: dialogueObject
+      value: 
+      objectReference: {fileID: 11400000, guid: a69a6accc06b1fc408ba155fa131a811, type: 2}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.data[0].name
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.data[0].onPickedResponse.m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.data[0].onPickedResponse.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.data[0].onPickedResponse.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1633788876}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.data[0].onPickedResponse.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: UpdateDialogueObject
+      objectReference: {fileID: 0}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.data[0].onPickedResponse.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: DialogueActivator, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.data[0].onPickedResponse.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgument
+      value: 
+      objectReference: {fileID: 11400000, guid: 1e3b9e2679d32354cb0c1b635c01a739, type: 2}
+    - target: {fileID: 2488951315519924188, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: events.Array.data[0].onPickedResponse.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: DialogueObject, Assembly-CSharp
+      objectReference: {fileID: 0}
     - target: {fileID: 6480782702569824836, guid: f0464b950946358488db0ebbc525aa85, type: 3}
       propertyPath: m_Layer
       value: 8
       objectReference: {fileID: 0}
+    - target: {fileID: 7425810550625364753, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: dialogueUI
+      value: 
+      objectReference: {fileID: 1473485217}
+    - target: {fileID: 7425810550625364753, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: dialogueObject
+      value: 
+      objectReference: {fileID: 11400000, guid: a69a6accc06b1fc408ba155fa131a811, type: 2}
     - target: {fileID: 8443721283247054296, guid: f0464b950946358488db0ebbc525aa85, type: 3}
       propertyPath: m_Radius
       value: 8.29
@@ -15386,6 +15434,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 469676, guid: 8882443425560684dba932aaf44f3350, type: 3}
   m_PrefabInstance: {fileID: 1472554198}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1473485217 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8201290086619869622, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
+  m_PrefabInstance: {fileID: 766105276}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eeab2a2a3666887429fc41c23b7e49b7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &1480433146
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -17594,6 +17653,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7108431418830170136, guid: e873531ef7ff81846bb9bc6c44f83aed, type: 3}
   m_PrefabInstance: {fileID: 1629159522}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1633788876 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7425810550625364753, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+  m_PrefabInstance: {fileID: 733021809}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aac68a85e90a7bc42bb0acb7fb3cd28e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &1633840683
 PrefabInstance:
   m_ObjectHideFlags: 0
