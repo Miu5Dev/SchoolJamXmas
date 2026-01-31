@@ -5653,6 +5653,10 @@ PrefabInstance:
       propertyPath: dialogueUI
       value: 
       objectReference: {fileID: 882559355}
+    - target: {fileID: 7425810550625364753, guid: f0464b950946358488db0ebbc525aa85, type: 3}
+      propertyPath: dialogueObject
+      value: 
+      objectReference: {fileID: 11400000, guid: be551a79130ca0b4aa171405749cea76, type: 2}
     - target: {fileID: 8612237160273310232, guid: f0464b950946358488db0ebbc525aa85, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

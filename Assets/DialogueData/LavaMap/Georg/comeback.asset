@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: comeback
   m_EditorClassIdentifier: 
   dialogue:
-  - 'To Groundpound press [G]'
+  - 'To Groundpound press [Shift]/[Strg]'
   responses: []
