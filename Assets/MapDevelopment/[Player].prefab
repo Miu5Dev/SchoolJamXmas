@@ -968,8 +968,74 @@ Transform:
   - {fileID: 8177581070887774130}
   - {fileID: 5831734906615284005}
   - {fileID: 6888123574732775239}
+  - {fileID: 4458600597333498733}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 180.696, z: 0}
+--- !u!1 &7526751896399987664
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4458600597333498733}
+  - component: {fileID: 1472879235415020353}
+  - component: {fileID: 6567975524076399050}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4458600597333498733
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7526751896399987664}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.9999815, z: -0, w: -0.0060767196}
+  m_LocalPosition: {x: -0.6118103, y: -2.8762589, z: -2.2723432}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3040525713790280486}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1472879235415020353
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7526751896399987664}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af9d25ac5e493c34881a1ac8955b6f91, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  coinsCollected: 0
+  requiredCoins: 0
+  sleighPartsCollected: 0
+  requiredSleightParts: 4
+  CurrentLives: 3
+--- !u!114 &6567975524076399050
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7526751896399987664}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 918d9e6137c382e42b98888f4d14c2dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fadeDuration: 1
+  holdDuration: 2
+  fadeColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &8332940519363825747
 GameObject:
   m_ObjectHideFlags: 0
