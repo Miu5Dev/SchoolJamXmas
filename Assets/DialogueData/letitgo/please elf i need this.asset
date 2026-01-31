@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
+  m_Name: please elf i need this
+  m_EditorClassIdentifier: 
+  dialogue:
+  - "Please, elf\u2026 I need this."
+  - '*He gestures frantically at the ice.'
+  - "The river's been frozen solid for months now, my entire village is kinda\u2026
+    frozen."
+  - We tried everything. Pickaxes. Fire spells. Even asked a reindeer to breathe
+    on it.
+  - Nothing worked.
+  - "But you\u2026 you fell from the sky. You've got that \"speed\" energy."
+  - "Just\u2026 run really fast on the ice or something. Maybe yell at it. I don't
+    know anymore."
+  responses: []
