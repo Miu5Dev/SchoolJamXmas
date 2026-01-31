@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
+  m_Name: Start
+  m_EditorClassIdentifier: 
+  dialogue:
+  - "D-don't\u2026 don't even think about jumping in that river."
+  - It's not normal cold, it's ancient cold. The kind that stops your heart mid-beat.
+  - "I saw an elf slip in once\u2026 he didn't even get a chance to scream."
+  - There's something glowing on the other side though, been sitting there since
+    the sky broke.
+  - If you're crazy enough to cross, find another way. The ice bridges are your only
+    shot.
+  - "Please\u2026 I don't want to watch another one fall."
+  responses:
+  - responseText: Okay
+    dialogueObject: {fileID: 0}
