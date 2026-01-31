@@ -34,6 +34,8 @@ public class ThirdPersonCamera : MonoBehaviour
     private Vector3 targetPosition;
     
     private Vector2 lookDelta = Vector2.zero;
+
+    public bool ableToMove = true;
     
     void Start()
     {
@@ -52,11 +54,15 @@ public class ThirdPersonCamera : MonoBehaviour
     void OnEnable()
     {
         EventBus.Subscribe<OnLookInputEvent>(OnLookInput);
+        EventBus.Subscribe<onDialogueOpen>(open => ableToMove = false);
+        EventBus.Subscribe<onDialogueClose>(open => ableToMove = true);
     }
     
     void OnDisable()
     {
         EventBus.Unsubscribe<OnLookInputEvent>(OnLookInput);
+        EventBus.Unsubscribe<onDialogueOpen>(open => ableToMove = false);
+        EventBus.Unsubscribe<onDialogueClose>(open => ableToMove = true);
     }
     
     private void OnLookInput(OnLookInputEvent e)
@@ -132,6 +138,7 @@ public class ThirdPersonCamera : MonoBehaviour
     
     private void UpdateCameraPosition()
     {
+        if(!ableToMove) return;
         // Suavizar el movimiento de la cámara
         transform.position = Vector3.SmoothDamp(transform.position, targetPosition, 
             ref currentVelocity, positionSmoothTime);

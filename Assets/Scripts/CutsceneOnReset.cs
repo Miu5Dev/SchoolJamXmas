@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
@@ -10,39 +11,38 @@ public class CutsceneOnReset : MonoBehaviour
     public Animator playerAnimator;
     public string wakeUpTrigger = "WakeUp";
     public float cutsceneDuration = 2f;
+    
+    public bool animationIsPlaying = false;
+    
     public MonoBehaviour playerController;
 
+    public void Start()
+    {
+        PlayCutsceneAndReload();
+    }
+    
     public void PlayCutsceneAndReload()
     {
+        animationIsPlaying = true;
         StartCoroutine(CutsceneRoutine());
+    }
+
+    public void Update()
+    {
+        if(animationIsPlaying)
+            EventBus.Raise<onDialogueOpen>(new onDialogueOpen());
+
     }
 
     private IEnumerator CutsceneRoutine()
     {
-        // Disable controls
-        // Here
-        EventBus.Raise<onDialogueOpen>(new onDialogueOpen());
-
-        // Play wake-up animation
         if (playerAnimator != null)
             playerAnimator.SetTrigger(wakeUpTrigger);
+        
 
         // Wait for the animation
         yield return new WaitForSeconds(cutsceneDuration);
-
-        // Re-enable controls
-        // HERE
+        animationIsPlaying = false;
         EventBus.Raise<onDialogueClose>(new onDialogueClose());
-        // Now actually reset level (you can move your GameManager logic here)
-        if (GameManager.Instance.CurrentLives > 0)
-        {
-            FadeManager.Instance.LoadSceneWithFade(SceneManager.GetActiveScene().name);
-            GameManager.Instance.CurrentLives -= 1;
-            
-        }
-        else
-        {
-            FadeManager.Instance.LoadSceneWithFade(0);
-        }
     }
 }

@@ -45,7 +45,7 @@ public class DialogueActivator : MonoBehaviour, Interactable
     // Called continuously while player is in trigger zone
     private void OnTriggerStay(Collider other)
     {
-        Debug.Log("OnTriggerStay");
+        //Dbug.Log("OnTriggerStay");
 
         // Check if the object in trigger is the player
         if (other.CompareTag("Player") && other.TryGetComponent(out PlayerDialogue player))
