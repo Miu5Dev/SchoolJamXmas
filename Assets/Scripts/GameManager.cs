@@ -64,6 +64,7 @@ public class GameManager : MonoBehaviour
    public void goToScene(int sceneID)
    {
       coinsCollected += CoinsCollectedInLevel;
+      CoinsCollectedInLevel = 0;
       FadeManager.Instance.LoadSceneWithFade(sceneID);
 
    }
