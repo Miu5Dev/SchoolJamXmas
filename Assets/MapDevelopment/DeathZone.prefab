@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3894061788990312397}
   - component: {fileID: 6148901765020720101}
   - component: {fileID: 6043302191686925314}
-  m_Layer: 0
+  m_Layer: 4
   m_Name: DeathZone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
