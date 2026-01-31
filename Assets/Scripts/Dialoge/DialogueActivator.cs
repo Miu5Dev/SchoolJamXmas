@@ -54,7 +54,7 @@ public class DialogueActivator : MonoBehaviour, Interactable
 
             // ⭐ OPTIONAL: Only show interaction icon if dialogue is not already open
             interactionIcon.SetActive(!dialogueUI.IsOpen);
-        }
+        }   
     }
 
     // Called when player exits trigger zone
