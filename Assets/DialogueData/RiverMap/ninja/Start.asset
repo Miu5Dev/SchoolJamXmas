@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
+  m_Name: Start
+  m_EditorClassIdentifier: 
+  dialogue:
+  - "Oh hey\u2026 what are you doing here? An elf, huh?"
+  - '*He smirks and brushes snow off his cloak.'
+  - "What I\u2019m doing here? Oh, don\u2019t mind me, just keeping an eye on the
+    old Eternal Door of Santa"
+  - "I\u2019d love to go inside, but it\u2019s been locked for so many years I\u2019ve
+    lost count of how many times I\u2019ve come back just to try."
+  responses:
+  - responseText: Why is it closed?
+    dialogueObject: {fileID: 11400000, guid: f8e644a556ca4384096205dc7579def2, type: 2}

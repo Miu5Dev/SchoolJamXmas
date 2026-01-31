@@ -4,6 +4,8 @@ using System.Collections;
 
 public class CutsceneOnReset : MonoBehaviour
 {
+    
+
     [Header("Cutscene Settings")]
     public Animator playerAnimator;
     public string wakeUpTrigger = "WakeUp";
@@ -19,6 +21,7 @@ public class CutsceneOnReset : MonoBehaviour
     {
         // Disable controls
         // Here
+        EventBus.Raise<onDialogueOpen>(new onDialogueOpen());
 
         // Play wake-up animation
         if (playerAnimator != null)
@@ -29,12 +32,13 @@ public class CutsceneOnReset : MonoBehaviour
 
         // Re-enable controls
         // HERE
-
+        EventBus.Raise<onDialogueClose>(new onDialogueClose());
         // Now actually reset level (you can move your GameManager logic here)
         if (GameManager.Instance.CurrentLives > 0)
         {
             FadeManager.Instance.LoadSceneWithFade(SceneManager.GetActiveScene().name);
             GameManager.Instance.CurrentLives -= 1;
+            
         }
         else
         {
