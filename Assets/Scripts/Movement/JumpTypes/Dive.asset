@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20e84e968da9e844ab388e4d776edd51, type: 3}
   m_Name: Dive
   m_EditorClassIdentifier: 
-  jumpType: 6
-  jumpForce: 0
-  extraSpeed: 40
+  jumpType: 7
+  jumpForce: 1.5
+  extraSpeed: 50
   hangTime: 0
   condition: 1
   customCooldown: 0.5
