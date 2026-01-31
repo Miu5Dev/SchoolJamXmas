@@ -5,6 +5,7 @@ public class LocationTrigger : MonoBehaviour
 {
     [SerializeField]private int sceneIDtoLoad;
     [SerializeField]private GameManager gameManager;
+    public bool loadingLevel = false;
 
     public void OnEnable()
     {
@@ -15,8 +16,10 @@ public class LocationTrigger : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            gameManager.goToScene(sceneIDtoLoad);
-            
+            if(!loadingLevel){
+                gameManager.goToScene(sceneIDtoLoad);
+                loadingLevel = true;
+            }
         }
     }
 }
