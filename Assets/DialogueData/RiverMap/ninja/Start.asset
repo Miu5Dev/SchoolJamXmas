@@ -21,4 +21,4 @@ MonoBehaviour:
     lost count of how many times I\u2019ve come back just to try."
   responses:
   - responseText: Why is it closed?
-    dialogueObject: {fileID: 0}
+    dialogueObject: {fileID: 11400000, guid: f8e644a556ca4384096205dc7579def2, type: 2}

@@ -12,5 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
   m_Name: continue
   m_EditorClassIdentifier: 
-  dialogue: []
-  responses: []
+  dialogue:
+  - "because it was built back when Santa still brought us gifts himself. The elves
+    used it to quick\u2011travel between lands, helping deliver presents faster than
+    reindeer could fly."
+  - "Now no one uses it anymore. The magic\u2019s asleep."
+  - '*He leans closer, lowering his voice.'
+  - "They say only an Elite Elf can open it, their touch wakes the old door\u2019s
+    spirit."
+  - '*He pauses, eyeing you with a crooked grin.'
+  - "But you sure don\u2019t look like one\u2026 you don\u2019t even have a hat.
+    You\u2019re probably one that got kicked out."
+  - "Still, it doesn\u2019t hurt to try, does it?"
+  - "If you\u2019re feeling bold, follow the river until the end, you\u2019ll find
+    me there."
+  responses:
+  - responseText: Bye
+    dialogueObject: {fileID: 0}
