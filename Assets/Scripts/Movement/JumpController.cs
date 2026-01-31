@@ -231,6 +231,8 @@ public class JumpController : MonoBehaviour
     
     void Update()
     {
+        if(!ableToMove)return;
+        
         HandleHangTime();
         HandleGroundPound();
         HandleDive();

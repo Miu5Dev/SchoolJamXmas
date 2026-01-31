@@ -1,9 +1,11 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
    [SerializeField]public int coinsCollected = 0;
+   [SerializeField]public int CoinsCollectedInLevel = 0;
    [SerializeField]public int requiredCoins = 0;
    [SerializeField]public int sleighPartsCollected = 0;
    [SerializeField]public int requiredSleightParts = 4;
@@ -35,6 +37,14 @@ public class GameManager : MonoBehaviour
       SceneManager.sceneLoaded -= OnSceneLoaded;
    }
 
+   public void Update()
+   {
+      if (Input.GetKeyDown(KeyCode.Escape))
+      {
+         Application.Quit();
+      }
+   }
+
    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
    {
       if (scene.buildIndex != 0 && scene.buildIndex != 1)
@@ -53,8 +63,12 @@ public class GameManager : MonoBehaviour
    
    public void goToScene(int sceneID)
    {
+      coinsCollected += CoinsCollectedInLevel;
       FadeManager.Instance.LoadSceneWithFade(sceneID);
 
    }
+   
+   
+   
 
 }

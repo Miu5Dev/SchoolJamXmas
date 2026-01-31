@@ -11,6 +11,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MainWorldHubMap.unity
     guid: 8151e50b853c75b4aa014e50413a66f1
+  - enabled: 1
+    path: Assets/Scenes/FrozenRiverMap.unity
+    guid: a167c9059c77d87438b399fc150c4057
+  - enabled: 1
+    path: Assets/Scenes/LavaValleyMap.unity
+    guid: b0e5b97cdcf1d344599ceb097be2faef
+  - enabled: 1
+    path: Assets/Scenes/ShiverySlopeMap.unity
+    guid: e54296d3f1531f948bf5ed26adbb74f5
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: ee9bf3e6b73d19f42be660e1826592e3, type: 3}
   m_UseUCBPForAssetBundles: 0
