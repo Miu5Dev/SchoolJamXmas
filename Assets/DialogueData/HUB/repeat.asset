@@ -10,10 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
-  m_Name: Tutorial
+  m_Name: repeat
   m_EditorClassIdentifier: 
   dialogue:
-  - 'To jump press [Space]'
-  - If you press [shift]/[Strg] you can perform a groundpound
-  - Pressing [E] while in groundpound state you can dive
+  - The sleigh waits. So do I.
   responses: []
