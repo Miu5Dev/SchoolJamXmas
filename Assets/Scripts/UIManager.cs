@@ -14,12 +14,12 @@ public class UIManager : MonoBehaviour
         {
             if (GameManager.Instance.CurrentLives != 3) GameManager.Instance.CurrentLives = 3;
             coinsCollected.text = "Coins: " + GameManager.Instance.coinsCollected;
-            sleighCollected.text = "Sleight Parts: " + GameManager.Instance.sleighPartsCollected + " / " + GameManager.Instance.requiredSleightParts;
+            sleighCollected.text = "Sleigh Parts: " + GameManager.Instance.sleighPartsCollected + " / " + GameManager.Instance.requiredSleightParts;
         }
         else
         {
             coinsCollected.text = "Coins: " + GameManager.Instance.CoinsCollectedInLevel + " / " + GameManager.Instance.requiredCoins;
-            sleighCollected.text = "Sleight Parts: " + GameManager.Instance.sleighPartsCollected + " / " + GameManager.Instance.requiredSleightParts;
+            sleighCollected.text = "Sleigh Parts: " + GameManager.Instance.sleighPartsCollected + " / " + GameManager.Instance.requiredSleightParts;
         }
     }
     
