@@ -35,7 +35,7 @@ public class FadeManager : MonoBehaviour
         
         Canvas canvas = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 9999;
+        canvas.sortingOrder = 10;
         
         CanvasScaler scaler = canvasGO.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -47,7 +47,7 @@ public class FadeManager : MonoBehaviour
         
         fadeImage = imageGO.AddComponent<Image>();
         fadeImage.color = new Color(fadeColor.r, fadeColor.g, fadeColor.b, 0f);
-        fadeImage.raycastTarget = true;
+        fadeImage.raycastTarget = false;
         
         RectTransform rect = fadeImage.rectTransform;
         rect.anchorMin = Vector2.zero;
