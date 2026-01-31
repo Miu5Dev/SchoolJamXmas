@@ -56,6 +56,8 @@ public class OnPlayerMoveEvent : PlayerEventBase
     public bool isCrouching;
     
     public float speed;
+    
+    public float rotationState;
 }
 
 public class OnPlayerStopEvent : PlayerEventBase
