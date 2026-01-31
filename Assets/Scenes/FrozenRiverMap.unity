@@ -13713,7 +13713,7 @@ Transform:
   m_GameObject: {fileID: 1202812978}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 42.76, y: 2.084, z: 456.28}
+  m_LocalPosition: {x: 42.76, y: 3.123, z: 456.28}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -22915,6 +22915,7 @@ MonoBehaviour:
   requiredCoins: 0
   sleighPartsCollected: 0
   requiredSleightParts: 4
+  CurrentLives: 3
 --- !u!4 &2112156546
 Transform:
   m_ObjectHideFlags: 0
