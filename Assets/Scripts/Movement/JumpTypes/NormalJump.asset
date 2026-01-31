@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: NormalJump
   m_EditorClassIdentifier: 
   jumpType: 0
-  jumpForce: 2
-  extraSpeed: 5
+  jumpForce: 5
+  extraSpeed: 0
   hangTime: 0
   condition: 0
   customCooldown: 0

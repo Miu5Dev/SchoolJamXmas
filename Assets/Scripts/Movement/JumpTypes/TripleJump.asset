@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TripleJump
   m_EditorClassIdentifier: 
   jumpType: 2
-  jumpForce: 6
+  jumpForce: 9
   extraSpeed: 8
   hangTime: 0
   condition: 0
