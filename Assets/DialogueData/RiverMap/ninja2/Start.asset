@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
+  m_Name: Start
+  m_EditorClassIdentifier: 
+  dialogue:
+  - "Well, look who actually showed up. Didn\u2019t think you\u2019d take me seriously."
+  - "I\u2019ve been poking at this door for decades, and it never even blinked at
+    me."
+  - He steps aside as the symbols start to shimmer brighter when you approach.
+  - "Heh\u2026 would you look at that, it\u2019s reacting to you."
+  - "Guess those old stories weren\u2019t all frozen air after all."
+  - "So, you really are one of Santa\u2019s Elite Elves."
+  - "*He laughs quietly, half\u2011impressed, half\u2011embarrassed."
+  - And here I was calling you a dropout without a hat.
+  - "Go on then, open it, let\u2019s see if the door still remembers Christmas."
+  - "I\u2026 I must tell everyone that the Elite Elves have returned!!!"
+  responses:
+  - responseText: Bye
+    dialogueObject: {fileID: 0}

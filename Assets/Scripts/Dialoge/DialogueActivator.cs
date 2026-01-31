@@ -9,6 +9,7 @@ public class DialogueActivator : MonoBehaviour, Interactable
 
     // UI icon shown when player can interact (e.g., "Press E")
     public GameObject interactionIcon;
+    private bool playerInRange = false;
 
     // Reference to the player's dialogue UI
     [SerializeField] private DialogueUI dialogueUI;
@@ -29,7 +30,7 @@ public class DialogueActivator : MonoBehaviour, Interactable
     private void doStuff(OnActionInputEvent ev)
     {
         // ⭐ CHECK: Only interact if button pressed AND dialogue UI exists AND dialogue is not already open
-        if (ev.pressed && dialogueUI != null && !dialogueUI.IsOpen)
+        if (ev.pressed && playerInRange && dialogueUI != null && !dialogueUI.IsOpen)
         {
             Interact();
         }
@@ -49,12 +50,13 @@ public class DialogueActivator : MonoBehaviour, Interactable
         // Check if the object in trigger is the player
         if (other.CompareTag("Player") && other.TryGetComponent(out PlayerDialogue player))
         {
+            playerInRange = true;
             // Get reference to player's dialogue UI
             dialogueUI = player.DialogueUI;
 
             // ⭐ OPTIONAL: Only show interaction icon if dialogue is not already open
             interactionIcon.SetActive(!dialogueUI.IsOpen);
-        }
+        }   
     }
 
     // Called when player exits trigger zone
@@ -63,6 +65,7 @@ public class DialogueActivator : MonoBehaviour, Interactable
         // Check if the exiting object is the player
         if (other.CompareTag("Player") && other.TryGetComponent(out PlayerDialogue player))
         {
+            playerInRange = false;
             // Clear dialogue UI reference
             dialogueUI = null;
 

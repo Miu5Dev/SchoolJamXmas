@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0ef424f3b6b3eb48a34b604c2b00f5f, type: 3}
+  m_Name: Beginner
+  m_EditorClassIdentifier: 
+  dialogue:
+  - You finally woke up.
+  - "You just came crashing from the sky, it\u2019s a wonder you didn\u2019t die."
+  - "Anyway, you\u2019re in prison actually\u2026 but don\u2019t worry, they abandoned
+    this place long ago."
+  - I just finished building my escape route.
+  - youre probably concused, if you want i can help you learn how to move
+  responses:
+  - responseText: Sure
+    dialogueObject: {fileID: 11400000, guid: 73caccf375a552d4fa0abaf63846e53f, type: 2}
+  - responseText: No need
+    dialogueObject: {fileID: 0}
