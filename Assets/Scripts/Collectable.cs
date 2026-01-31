@@ -37,7 +37,7 @@ public class Collectable : MonoBehaviour
             if (SleighPiece)
                 gameManager.sleighPartsCollected += 1;
             else
-                gameManager.coinsCollected += 1;
+                gameManager.CoinsCollectedInLevel += 1;
             Destroy(gameObject);
         }
     }
