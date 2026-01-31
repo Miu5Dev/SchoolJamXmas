@@ -59,10 +59,16 @@ public class DeathZone : MonoBehaviour
         if(GameManager.Instance.CurrentLives > 0){
             FadeManager.Instance.LoadSceneWithFade(SceneManager.GetActiveScene().name);
             GameManager.Instance.CurrentLives -= 1;
+            GameManager.Instance.CoinsCollectedInLevel = 0;
         }
         else
         {
             FadeManager.Instance.LoadSceneWithFade(0);
+            GameManager.Instance.CurrentLives = 3;
+            GameManager.Instance.coinsCollected = 0;
+            GameManager.Instance.CoinsCollectedInLevel = 0;
+            GameManager.Instance.sleighPartsCollected = 0;
+
         }
     }
 }

@@ -1,22 +1,26 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
     [SerializeField]private TMP_Text coinsCollected;
     [SerializeField]private TMP_Text sleighCollected;
-
-    [SerializeField]private GameManager gameManager;
     
-    public void OnEnable()
-    {
-        gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
-    }
-
     public void Update()
     {
-        coinsCollected.text = "Coins: " + gameManager.coinsCollected + " / " + gameManager.requiredCoins;
-        sleighCollected.text = "Sleight Parts: " + gameManager.sleighPartsCollected + " / " + gameManager.requiredSleightParts;
+
+        if (SceneManager.GetActiveScene().buildIndex == 0 || SceneManager.GetActiveScene().buildIndex == 1)
+        {
+            
+            coinsCollected.text = "Coins: " + GameManager.Instance.coinsCollected;
+            sleighCollected.text = "Sleight Parts: " + GameManager.Instance.sleighPartsCollected + " / " + GameManager.Instance.requiredSleightParts;
+        }
+        else
+        {
+            coinsCollected.text = "Coins: " + GameManager.Instance.CoinsCollectedInLevel + " / " + GameManager.Instance.requiredCoins;
+            sleighCollected.text = "Sleight Parts: " + GameManager.Instance.sleighPartsCollected + " / " + GameManager.Instance.requiredSleightParts;
+        }
     }
     
     
