@@ -177,6 +177,40 @@ public class OnPlayerDiveEvent : PlayerEventBase
     
 }
 
+// ============================================================================
+// MARIO 64 STYLE MOVEMENT EVENTS
+// ============================================================================
+
+/// <summary>
+/// Evento emitido cuando el jugador entra o sale del estado de skid/derrape.
+/// Útil para activar animaciones de frenado.
+/// </summary>
+public class OnPlayerSkidEvent : PlayerEventBase
+{
+    /// <summary>
+    /// True cuando empieza el skid, False cuando termina
+    /// </summary>
+    public bool IsSkidding;
+    
+    /// <summary>
+    /// Dirección desde la que el jugador estaba moviéndose cuando empezó el skid.
+    /// Útil para orientar la animación de derrape.
+    /// </summary>
+    public Vector3 SkidDirection;
+}
+
+/// <summary>
+/// Evento emitido cuando el jugador completa el giro después del skid
+/// y está listo para correr en la nueva dirección.
+/// </summary>
+public class OnPlayerSkidCompleteEvent : PlayerEventBase
+{
+    /// <summary>
+    /// Nueva dirección hacia la que el jugador va a correr
+    /// </summary>
+    public Vector3 NewDirection;
+}
+
 
 // ============================================================================
 // ENUMS

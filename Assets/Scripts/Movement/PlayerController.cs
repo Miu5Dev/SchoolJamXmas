@@ -30,16 +30,41 @@ public class PlayerController : MonoBehaviour
     [Header("On Slope Movement Rotation Settings")]
     [SerializeField] private float rotationSmoothSpeed = 8f;
     
-    [Header("Rotation")]
-    [SerializeField] private float rotationSpeed = 720f;
-    [SerializeField] private float rotationSpeedWhenSlow = 360f;
-    [SerializeField] private float minimumSpeedToRotate = 0.1f;
-    [SerializeField] private float rotationStateSmoothing = 5f; // NUEVO - Ajusta este valor
-
+    // ========================================================================
+    // MARIO 64 STYLE ROTATION SETTINGS
+    // ========================================================================
+    [Header("Mario 64 Style Rotation")]
+    [Tooltip("Speed threshold to consider player 'stopped' for instant rotation")]
+    [SerializeField] private float stoppedSpeedThreshold = 0.5f;
     
+    [Tooltip("Angle threshold to trigger skid/brake turn (usually 120-150)")]
+    [SerializeField] private float skidAngleThreshold = 130f;
+    
+    [Tooltip("How fast player rotates when stopped (instant feel)")]
+    [SerializeField] private float stoppedRotationSpeed = 2000f;
+    
+    [Tooltip("How fast player rotates during normal arc movement")]
+    [SerializeField] private float arcRotationSpeed = 360f;
+    
+    [Tooltip("How fast the arc turn blends direction")]
+    [SerializeField] private float arcTurnBlendSpeed = 6f;
+    
+    [Tooltip("How fast player decelerates during skid")]
+    [SerializeField] private float skidDeceleration = 25f;
+    
+    [Tooltip("Speed at which skid ends and player can turn")]
+    [SerializeField] private float skidEndSpeed = 2f;
+    
+    [Tooltip("How fast player rotates at the END of skid (quick snap)")]
+    [SerializeField] private float skidEndRotationSpeed = 1500f;
+    
+    [Tooltip("Minimum time in skid before can exit")]
+    [SerializeField] private float minSkidTime = 0.1f;
+    
+    [Header("Rotation State (for animations)")]
+    [SerializeField] private float rotationStateSmoothing = 5f;
+
     [Header("Movement Style")]
-    [SerializeField] private float movementBlendSpeed = 8f;
-    [SerializeField] private bool useArcMovement = true;
     [SerializeField] private float directionChangePenalty = 0.5f;
     [SerializeField] private float directionChangeThreshold = 90f;
     
@@ -73,7 +98,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool isInHangTime = false;
     [SerializeField] private Vector3 inputMoveDirection = Vector3.zero;
     [SerializeField] private bool ableToMove = true;
-    [SerializeField] private float currentRotationState = 1f; // NUEVO
+    [SerializeField] private float currentRotationState = 1f;
+    
+    [Header("DEBUG - Mario 64 Turn State")]
+    [SerializeField] private TurnState currentTurnState = TurnState.None;
+    [SerializeField] private float skidStartTime = -1f;
+    [SerializeField] private Vector3 skidTargetDirection = Vector3.zero;
+    [SerializeField] private float currentTurnAngle = 0f;
 
     /// <summary>
     /// PRIVATE VARIABLES
@@ -81,8 +112,16 @@ public class PlayerController : MonoBehaviour
     private bool RisingSpeed = false;
     private float lastJumpTime = -1f;
     private bool StopEventSended = false;
-
     
+    // Turn state enum
+    public enum TurnState
+    {
+        None,           // No turn in progress
+        ArcTurn,        // Smooth curved turn
+        Skidding,       // Braking/skidding before 180
+        SkidTurning     // Quick turn at end of skid
+    }
+
     void Awake()
     {
         controller = GetComponent<CharacterController>();
@@ -188,21 +227,40 @@ public class PlayerController : MonoBehaviour
         GravityHandler();
         
         if (!ableToMove) return;
-        SpeedController();
-        CalculateCameraRelativeMovement();
-        RotatePlayer();
-        MovementController();
         
+        CalculateCameraRelativeMovement();
+        HandleMario64Movement();
+        SpeedController();
+        MovementController();
     }
 
     private void OnGrounded(OnPlayerGroundedEvent ev)
     {
         grounded = true;
+        
+        // Reset skid state when landing
+        if (currentTurnState == TurnState.Skidding || currentTurnState == TurnState.SkidTurning)
+        {
+            // Keep the skid going if we were skidding in air (rare but possible)
+        }
     }
 
     private void OnAirborne(OnPlayerAirborneEvent ev)
     {
         grounded = false;
+        
+        // Cancel skid when going airborne
+        if (currentTurnState == TurnState.Skidding || currentTurnState == TurnState.SkidTurning)
+        {
+            currentTurnState = TurnState.None;
+            
+            EventBus.Raise(new OnPlayerSkidEvent()
+            {
+                Player = gameObject,
+                IsSkidding = false,
+                SkidDirection = Vector3.zero
+            });
+        }
     }
 
     private void OnSlope(OnPlayerSlopeEvent ev)
@@ -230,243 +288,404 @@ public class PlayerController : MonoBehaviour
         {
             inputMoveDirection = Vector3.zero;
         }
-        
-        // Lógica de sliding con momentum
+    }
+
+    // ========================================================================
+    // MARIO 64 STYLE MOVEMENT SYSTEM
+    // ========================================================================
+    
+    private void HandleMario64Movement()
+    {
+        // Skip Mario 64 movement logic when sliding
         if (isSliding)
         {
-            Vector3 horizontalSlideDir = new Vector3(slideDirection.x, 0f, slideDirection.z).normalized;
-            
-            if (isBeingPushedDown)
-            {
-                // La gravedad gana - comportamiento con control limitado
-                if (inputDirection.magnitude > 0.1f)
-                {
-                    float dotAgainstSlide = Vector3.Dot(inputMoveDirection, -horizontalSlideDir);
-                    
-                    if (dotAgainstSlide > 0)
-                    {
-                        // Intentando ir cuesta arriba - solo permitir movimiento perpendicular
-                        Vector3 perpendicularInput = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
-                        
-                        if (perpendicularInput.magnitude > 0.1f)
-                        {
-                            perpendicularInput.Normalize();
-                            moveDirection = Vector3.Lerp(horizontalSlideDir, perpendicularInput, slideControlMultiplier).normalized;
-                        }
-                        else
-                        {
-                            moveDirection = horizontalSlideDir;
-                        }
-                    }
-                    else
-                    {
-                        // Yendo a favor o perpendicular - mezclar con input
-                        moveDirection = Vector3.Lerp(horizontalSlideDir, inputMoveDirection, slideControlMultiplier).normalized;
-                    }
-                }
-                else
-                {
-                    moveDirection = horizontalSlideDir;
-                }
-            }
-            else
-            {
-                // El momentum gana - el jugador mantiene su dirección
-                if (inputDirection.magnitude > 0.1f)
-                {
-                    moveDirection = Vector3.Lerp(moveDirection, inputMoveDirection, movementBlendSpeed * Time.deltaTime).normalized;
-                }
-                // Si no hay input, mantiene la dirección actual (momentum)
-            }
-            
-            moveDirection.y = 0f;
-            if (moveDirection.magnitude > 0.1f)
-            {
-                moveDirection.Normalize();
-            }
-            
-            targetMoveDirection = moveDirection;
+            HandleSlidingMovement();
             return;
         }
         
-        // Lógica normal (no sliding)
-        if (inputDirection.magnitude > 0.1f)
+        // Skip when in air (use simpler air control)
+        if (!grounded)
         {
-            targetMoveDirection = inputMoveDirection;
-            
-            if (moveDirection.magnitude > 0.1f && targetMoveDirection.magnitude > 0.1f && currentSpeed > minSpeed + 0.5f)
-            {
-                float angleChange = Vector3.Angle(moveDirection, targetMoveDirection);
+            HandleAirMovement();
+            return;
+        }
+        
+        // No input - just decelerate, no turn logic
+        if (inputMoveDirection.magnitude < 0.1f)
+        {
+            currentTurnState = TurnState.None;
+            return;
+        }
+        
+        // Calculate angle between current facing and input
+        float angleToInput = 0f;
+        if (moveDirection.magnitude > 0.1f)
+        {
+            angleToInput = Vector3.Angle(moveDirection, inputMoveDirection);
+        }
+        currentTurnAngle = angleToInput;
+        
+        // === STATE MACHINE FOR TURNING ===
+        
+        switch (currentTurnState)
+        {
+            case TurnState.None:
+                HandleNoTurnState(angleToInput);
+                break;
                 
-                if (angleChange > directionChangeThreshold)
-                {
-                    DirectionChanged = true;
-                    
-                    float penaltyFactor = Mathf.InverseLerp(directionChangeThreshold, 180f, angleChange);
-                    
-                    EventBus.Raise<OnDirectionChangeEvent>(new OnDirectionChangeEvent()
-                    {
-                        Player = this.gameObject,
-                        AngleChange = angleChange,
-                        OldDirection = moveDirection,
-                        NewDirection = targetMoveDirection,
-                        PenaltyFactor = penaltyFactor
-                    });
-                    
-                    currentSpeed *= Mathf.Lerp(1f, directionChangePenalty, penaltyFactor);
-                    currentSpeed = Mathf.Max(currentSpeed, minSpeed);
-                }
-            }
-            
-            if (useArcMovement && moveDirection.magnitude > 0.01f)
-            {
-                moveDirection = Vector3.Lerp(moveDirection, targetMoveDirection, movementBlendSpeed * Time.deltaTime);
-                moveDirection.Normalize();
-            }
-            else
-            {
-                moveDirection = targetMoveDirection;
-            }
+            case TurnState.ArcTurn:
+                HandleArcTurnState(angleToInput);
+                break;
+                
+            case TurnState.Skidding:
+                HandleSkiddingState();
+                break;
+                
+            case TurnState.SkidTurning:
+                HandleSkidTurningState();
+                break;
         }
     }
-
-    private void RotatePlayer()
+    
+    private void HandleNoTurnState(float angleToInput)
     {
-        Vector3 rotationDirection;
+        // CASE 1: Player is stopped or very slow - INSTANT rotation
+        if (currentSpeed <= stoppedSpeedThreshold)
+        {
+            // Instant direction change
+            moveDirection = inputMoveDirection;
+            targetMoveDirection = inputMoveDirection;
+            
+            // Instant rotation
+            if (inputMoveDirection.magnitude > 0.1f)
+            {
+                transform.rotation = Quaternion.LookRotation(inputMoveDirection);
+            }
+            return;
+        }
         
+        // CASE 2: Moving and big angle change - Start SKID
+        if (angleToInput >= skidAngleThreshold)
+        {
+            StartSkid();
+            return;
+        }
+        
+        // CASE 3: Moving and moderate angle - Start ARC TURN
+        if (angleToInput > 10f)
+        {
+            currentTurnState = TurnState.ArcTurn;
+            HandleArcTurnState(angleToInput);
+            return;
+        }
+        
+        // CASE 4: Moving straight or very small angle - direct movement
+        moveDirection = inputMoveDirection;
+        targetMoveDirection = inputMoveDirection;
+        RotateTowardsDirection(inputMoveDirection, arcRotationSpeed);
+    }
+    
+    private void HandleArcTurnState(float angleToInput)
+    {
+        // Check if angle became too sharp - switch to skid
+        if (angleToInput >= skidAngleThreshold && currentSpeed > skidEndSpeed)
+        {
+            StartSkid();
+            return;
+        }
+        
+        // Check if turn is complete
+        if (angleToInput < 5f)
+        {
+            currentTurnState = TurnState.None;
+            moveDirection = inputMoveDirection;
+            targetMoveDirection = inputMoveDirection;
+            return;
+        }
+        
+        // Smooth arc turn - blend direction over time
+        targetMoveDirection = inputMoveDirection;
+        moveDirection = Vector3.Lerp(moveDirection, inputMoveDirection, arcTurnBlendSpeed * Time.deltaTime);
+        moveDirection.Normalize();
+        
+        // Rotate player smoothly
+        RotateTowardsDirection(moveDirection, arcRotationSpeed);
+        
+        // Apply some speed penalty based on turn sharpness
+        float turnPenalty = Mathf.InverseLerp(0f, skidAngleThreshold, angleToInput);
+        float penaltyMultiplier = Mathf.Lerp(1f, 0.95f, turnPenalty);
+        // Speed penalty is handled in SpeedController
+    }
+    
+    private void StartSkid()
+    {
+        currentTurnState = TurnState.Skidding;
+        skidStartTime = Time.time;
+        skidTargetDirection = inputMoveDirection;
+        
+        // Emit skid event for animations
+        EventBus.Raise(new OnPlayerSkidEvent()
+        {
+            Player = gameObject,
+            IsSkidding = true,
+            SkidDirection = moveDirection // Direction we're skidding FROM
+        });
+        
+        // Also emit direction change event
+        EventBus.Raise(new OnDirectionChangeEvent()
+        {
+            Player = gameObject,
+            AngleChange = currentTurnAngle,
+            OldDirection = moveDirection,
+            NewDirection = skidTargetDirection,
+            PenaltyFactor = 1f
+        });
+    }
+    
+    private void HandleSkiddingState()
+    {
+        // During skid: 
+        // - Player keeps moving in ORIGINAL direction (not rotating yet)
+        // - Speed decreases rapidly
+        // - Once speed is low enough, transition to SkidTurning
+        
+        // Keep the original movement direction (sliding/skidding)
+        // Don't change moveDirection yet!
+        
+        // Update target in case player changes input
         if (inputMoveDirection.magnitude > 0.1f)
         {
-            if (isSliding)
+            skidTargetDirection = inputMoveDirection;
+        }
+        
+        // Decelerate
+        currentSpeed -= skidDeceleration * Time.deltaTime;
+        currentSpeed = Mathf.Max(currentSpeed, 0f);
+        
+        // Check if we can exit skid
+        bool minTimePassed = Time.time > skidStartTime + minSkidTime;
+        bool slowEnough = currentSpeed <= skidEndSpeed;
+        
+        if (minTimePassed && slowEnough)
+        {
+            // Transition to quick turn
+            currentTurnState = TurnState.SkidTurning;
+        }
+        
+        // Player faces original direction during skid (or slightly backwards for visual effect)
+        // Keep current rotation - don't rotate during skid
+    }
+    
+    private void HandleSkidTurningState()
+    {
+        // Quick snap rotation to new direction
+        if (skidTargetDirection.magnitude > 0.1f)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(skidTargetDirection);
+            float step = skidEndRotationSpeed * Time.deltaTime;
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, step);
+            
+            // Check if rotation is complete
+            float remainingAngle = Quaternion.Angle(transform.rotation, targetRot);
+            
+            if (remainingAngle < 5f)
             {
-                Vector3 horizontalSlideDir = new Vector3(slideDirection.x, 0f, slideDirection.z).normalized;
-                float dotAgainstSlide = Vector3.Dot(inputMoveDirection, -horizontalSlideDir);
+                // Snap to final rotation
+                transform.rotation = targetRot;
                 
-                float playerStrength = maxSpeed;
-                float slideStrength = currentSpeed;
-                float resistRatio = Mathf.Clamp01((playerStrength - slideStrength) / playerStrength);
+                // Update movement direction
+                moveDirection = skidTargetDirection;
+                targetMoveDirection = skidTargetDirection;
                 
-                if (dotAgainstSlide > 0)
+                // Exit skid state
+                currentTurnState = TurnState.None;
+                
+                // Emit end of skid
+                EventBus.Raise(new OnPlayerSkidEvent()
                 {
-                    if (resistRatio <= 0)
-                    {
-                        Vector3 perpendicularInput = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
-                        
-                        if (perpendicularInput.magnitude > 0.1f)
-                        {
-                            perpendicularInput.Normalize();
-                            
-                            float maxLateralAngle = 45f;
-                            float lateralAngle = Vector3.SignedAngle(horizontalSlideDir, perpendicularInput, Vector3.up);
-                            lateralAngle = Mathf.Clamp(lateralAngle, -maxLateralAngle, maxLateralAngle);
-                            
-                            rotationDirection = Quaternion.Euler(0f, lateralAngle, 0f) * horizontalSlideDir;
-                        }
-                        else
-                        {
-                            rotationDirection = horizontalSlideDir;
-                        }
-                    }
-                    else
-                    {
-                        Vector3 uphillComponent = dotAgainstSlide * -horizontalSlideDir * resistRatio;
-                        Vector3 otherComponent = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
-                        rotationDirection = (uphillComponent + otherComponent).normalized;
-                    }
-                }
-                else
-                {
-                    float maxLateralAngle = 45f;
-                    float inputAngle = Vector3.SignedAngle(horizontalSlideDir, inputMoveDirection, Vector3.up);
-                    inputAngle = Mathf.Clamp(inputAngle, -maxLateralAngle, maxLateralAngle);
-                    
-                    rotationDirection = Quaternion.Euler(0f, inputAngle, 0f) * horizontalSlideDir;
-                }
-            }
-            else
-            {
-                rotationDirection = inputMoveDirection;
+                    Player = gameObject,
+                    IsSkidding = false,
+                    SkidDirection = Vector3.zero
+                });
             }
         }
         else
         {
-            rotationDirection = moveDirection;
-        }
-        
-        if (rotationDirection.magnitude > 0.1f)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(rotationDirection);
+            // No input during skid turn - just end it
+            currentTurnState = TurnState.None;
             
-            float speedFactor = Mathf.InverseLerp(0f, maxSpeed, currentSpeed);
-            speedFactor = Mathf.Clamp01(speedFactor);
-            
-            float currentRotationSpeed = Mathf.Lerp(rotationSpeedWhenSlow, rotationSpeed, speedFactor);
-            
-            float rotationStep = currentRotationSpeed * Time.deltaTime;
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationStep);
+            EventBus.Raise(new OnPlayerSkidEvent()
+            {
+                Player = gameObject,
+                IsSkidding = false,
+                SkidDirection = Vector3.zero
+            });
         }
     }
+    
+    private void HandleAirMovement()
+    {
+        // In air: similar to arc turn but with less control
+        if (inputMoveDirection.magnitude > 0.1f)
+        {
+            targetMoveDirection = inputMoveDirection;
+            
+            // Slower direction change in air
+            float airBlendSpeed = arcTurnBlendSpeed * 0.5f;
+            moveDirection = Vector3.Lerp(moveDirection, inputMoveDirection, airBlendSpeed * Time.deltaTime);
+            moveDirection.Normalize();
+            
+            // Rotate towards movement direction
+            RotateTowardsDirection(moveDirection, arcRotationSpeed * 0.7f);
+        }
+    }
+    
+    private void HandleSlidingMovement()
+    {
+        // Existing sliding logic
+        Vector3 horizontalSlideDir = new Vector3(slideDirection.x, 0f, slideDirection.z).normalized;
+        
+        if (isBeingPushedDown)
+        {
+            if (inputDirection.magnitude > 0.1f)
+            {
+                float dotAgainstSlide = Vector3.Dot(inputMoveDirection, -horizontalSlideDir);
+                
+                if (dotAgainstSlide > 0)
+                {
+                    Vector3 perpendicularInput = inputMoveDirection - (dotAgainstSlide * -horizontalSlideDir);
+                    
+                    if (perpendicularInput.magnitude > 0.1f)
+                    {
+                        perpendicularInput.Normalize();
+                        moveDirection = Vector3.Lerp(horizontalSlideDir, perpendicularInput, slideControlMultiplier).normalized;
+                    }
+                    else
+                    {
+                        moveDirection = horizontalSlideDir;
+                    }
+                }
+                else
+                {
+                    moveDirection = Vector3.Lerp(horizontalSlideDir, inputMoveDirection, slideControlMultiplier).normalized;
+                }
+            }
+            else
+            {
+                moveDirection = horizontalSlideDir;
+            }
+        }
+        else
+        {
+            if (inputDirection.magnitude > 0.1f)
+            {
+                moveDirection = Vector3.Lerp(moveDirection, inputMoveDirection, arcTurnBlendSpeed * Time.deltaTime).normalized;
+            }
+        }
+        
+        moveDirection.y = 0f;
+        if (moveDirection.magnitude > 0.1f)
+        {
+            moveDirection.Normalize();
+        }
+        
+        targetMoveDirection = moveDirection;
+        
+        // Rotate during sliding
+        if (moveDirection.magnitude > 0.1f)
+        {
+            RotateTowardsDirection(moveDirection, arcRotationSpeed);
+        }
+    }
+    
+    private void RotateTowardsDirection(Vector3 direction, float rotationSpeed)
+    {
+        if (direction.magnitude < 0.1f) return;
+        
+        Quaternion targetRotation = Quaternion.LookRotation(direction);
+        float step = rotationSpeed * Time.deltaTime;
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, step);
+    }
+
+    // ========================================================================
+    // SPEED CONTROLLER
+    // ========================================================================
 
     private void SpeedController()
     {
         float moveDirectionMultiplier = Mathf.Clamp(inputDirection.magnitude, 0.1f, 1f);
         
-        // Lógica de sliding con momentum
+        // Sliding speed is handled separately
         if (isSliding)
         {
             if (isBeingPushedDown)
             {
-                // Acelerando cuesta abajo
                 currentSpeed += slideSpeedGain * Time.deltaTime;
                 currentSpeed = Mathf.Min(currentSpeed, slideMaxSpeed);
             }
             else
             {
-                // Subiendo con momentum - pierde velocidad gradualmente
                 currentSpeed -= slideMomentumDecay * Time.deltaTime;
                 currentSpeed = Mathf.Max(currentSpeed, minSpeed);
             }
             return;
         }
         
-        // Código normal cuando NO está deslizando
+        // Skidding speed is handled in HandleSkiddingState
+        if (currentTurnState == TurnState.Skidding)
+        {
+            return; // Speed is controlled in skid handler
+        }
+        
+        // Normal speed control
         if (grounded)
         {
-            float maxSpeed = this.maxSpeed;
-            float speedLose = this.speedLose;
+            float maxSpd = this.maxSpeed;
+            float spdLose = this.speedLose;
+            
             if (isCrouching)
             {
-                maxSpeed = maxCrouchingSpeed;
-                speedLose = this.speedLose/CrouchDivider;
+                maxSpd = maxCrouchingSpeed;
+                spdLose = this.speedLose / CrouchDivider;
             }
 
             if (RisingSpeed)
             {
-                if (currentSpeed > maxSpeed)
-                    currentSpeed -= speedLose;
-                else if (currentSpeed < maxSpeed)
+                if (currentSpeed > maxSpd)
                 {
-                    currentSpeed += speedGain * moveDirectionMultiplier;
-                    currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+                    currentSpeed -= spdLose;
+                }
+                else if (currentSpeed < maxSpd)
+                {
+                    // Apply turn penalty to acceleration
+                    float turnPenalty = 1f;
+                    if (currentTurnState == TurnState.ArcTurn)
+                    {
+                        turnPenalty = Mathf.Lerp(1f, 0.5f, currentTurnAngle / skidAngleThreshold);
+                    }
+                    
+                    currentSpeed += speedGain * moveDirectionMultiplier * turnPenalty;
+                    currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpd);
                 }
             }
             else
             {
                 if (currentSpeed > minSpeed)
                 {
-                    currentSpeed -= speedLose;
-                    if (currentSpeed <= maxSpeed)
-                    {
-                        currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
-                    }
+                    currentSpeed -= spdLose;
+                    currentSpeed = Mathf.Max(currentSpeed, minSpeed);
                 }
             }
         }
         else
         {
+            // Air speed control
             if (RisingSpeed)
             {
                 if (currentSpeed > maxSpeed)
+                {
                     currentSpeed -= speedLose;
+                }
                 else if (currentSpeed < maxSpeed)
                 {
                     currentSpeed += (speedGain * moveDirectionMultiplier) / AirDivider;
@@ -478,34 +697,29 @@ public class PlayerController : MonoBehaviour
                 if (currentSpeed > minSpeed)
                 {
                     currentSpeed -= speedLose;
-                    if (currentSpeed <= maxSpeed)
-                    {
-                        currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
-                    }
+                    currentSpeed = Mathf.Max(currentSpeed, minSpeed);
                 }
             }
         }
     }
 
+    // ========================================================================
+    // MOVEMENT CONTROLLER
+    // ========================================================================
+
     private void MovementController()
     {
         if (moveDirection.magnitude > 0.1)
         {
-            // Calcular el estado de rotación objetivo
+            // Calculate rotation state for animations
             float targetRotationState = 1f;
 
             if (inputMoveDirection.magnitude > 0.1f)
             {
-                // Transformar el input al espacio local del personaje
                 Vector3 localInputDir = transform.InverseTransformDirection(inputMoveDirection);
-
-                // localInputDir.x es positivo = input a la derecha del personaje
-                // localInputDir.x es negativo = input a la izquierda del personaje
-                // Normalizar a rango 0-2
                 targetRotationState = 1f + Mathf.Clamp(localInputDir.x, -1f, 1f);
             }
 
-            // Transición suave hacia el valor objetivo
             currentRotationState = Mathf.Lerp(currentRotationState, targetRotationState, rotationStateSmoothing * Time.deltaTime);
 
             EventBus.Raise<OnPlayerMoveEvent>(new OnPlayerMoveEvent()
@@ -519,33 +733,30 @@ public class PlayerController : MonoBehaviour
             });
         }
 
+        // Handle stop event
         if (inputDirection.magnitude > 0.1 && currentSpeed > minSpeed)
         {
             StopEventSended = false;
         }
         
-        
         if (inputDirection.magnitude < 0.1 && currentSpeed <= minSpeed && !StopEventSended)
         {
-                Debug.Log("Stopped");
-                EventBus.Raise<OnPlayerStopEvent>(new OnPlayerStopEvent()
-                {
-                    Player = this.gameObject
-                });
-                StopEventSended = true;
+            Debug.Log("Stopped");
+            EventBus.Raise<OnPlayerStopEvent>(new OnPlayerStopEvent()
+            {
+                Player = this.gameObject
+            });
+            StopEventSended = true;
         }
 
+        // Calculate final movement
         Vector3 finalMoveDirection = moveDirection;
 
         bool recentlyJumped = Time.time < lastJumpTime + noSlopeProjectionTime;
-        
 
+        // Project onto slope when grounded
         if (SlopeNormal != Vector3.zero && SlopeNormal != Vector3.up && grounded && !recentlyJumped)
         {
-            Vector3 slopeUpDirection = Vector3.ProjectOnPlane(Vector3.up, SlopeNormal).normalized;
-            float uphillDot = Vector3.Dot(moveDirection, slopeUpDirection);
-            bool isGoingUphill = uphillDot > 0.3f;
-            
             if (moveDirection.magnitude > 0.1f)
             {
                 finalMoveDirection = Vector3.ProjectOnPlane(moveDirection, SlopeNormal);
@@ -554,6 +765,10 @@ public class PlayerController : MonoBehaviour
 
         controller.Move(finalMoveDirection * (currentSpeed * Time.deltaTime));
     }
+
+    // ========================================================================
+    // INPUT HANDLERS
+    // ========================================================================
 
     private void JumpToggle(OnJumpInputEvent e)
     {
@@ -589,8 +804,25 @@ public class PlayerController : MonoBehaviour
         }
     }
     
+    // ========================================================================
+    // JUMP EXECUTION
+    // ========================================================================
+
     private void ExecuteJump(JumpTypeCreator jumpType)
     {
+        // Cancel any skid when jumping
+        if (currentTurnState == TurnState.Skidding || currentTurnState == TurnState.SkidTurning)
+        {
+            currentTurnState = TurnState.None;
+            
+            EventBus.Raise(new OnPlayerSkidEvent()
+            {
+                Player = gameObject,
+                IsSkidding = false,
+                SkidDirection = Vector3.zero
+            });
+        }
+        
         float jumpSpeed;
         
         if (jumpType.resetSpeedOnJump)
@@ -638,6 +870,10 @@ public class PlayerController : MonoBehaviour
         grounded = false;
     }
 
+    // ========================================================================
+    // GRAVITY
+    // ========================================================================
+
     private void GravityHandler()
     {
         bool canLand = Time.time > lastJumpTime + jumpCooldown;
@@ -655,4 +891,12 @@ public class PlayerController : MonoBehaviour
         Vector3 verticalMovement = new Vector3(0, verticalVelocity, 0);
         controller.Move(verticalMovement * Time.deltaTime);
     }
+    
+    // ========================================================================
+    // PUBLIC GETTERS
+    // ========================================================================
+    
+    public TurnState GetCurrentTurnState() => currentTurnState;
+    public bool IsSkidding() => currentTurnState == TurnState.Skidding || currentTurnState == TurnState.SkidTurning;
+    public float GetCurrentSpeed() => currentSpeed;
 }
