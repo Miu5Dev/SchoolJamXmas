@@ -77,6 +77,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float slideMomentumDecay = 0f;
     [SerializeField] private float slideMaxSpeed = 15f;
     
+    [Header("Landing Lag")]
+    [Tooltip("Enable landing lag (brief slowdown on normal landing)")]
+    [SerializeField] private bool enableLandingLag = true;
+    [Tooltip("Duration of landing lag in seconds")]
+    [SerializeField] private float landingLagDuration = 0.15f;
+    [Tooltip("Speed multiplier during landing lag (0 = full stop, 1 = no slowdown)")]
+    [SerializeField] private float landingLagSpeedMultiplier = 0.3f;
+    [Tooltip("Minimum speed to apply landing lag (prevents lag on tiny falls)")]
+    [SerializeField] private float landingLagMinSpeed = 2f;
+    [SerializeField] private bool isInLandingLag = false;
+    [SerializeField] private float landingLagEndTime = -1f;
+    
     [Header("Gravity Values")]
     [SerializeField] private float Gravity = -9.81f;
     
@@ -149,6 +161,7 @@ public class PlayerController : MonoBehaviour
         EventBus.Subscribe<OnRotatePlayerCommand>(OnRotatePlayer);
         EventBus.Subscribe<OnPlayerSlideStateEvent>(OnSlideState);
         EventBus.Subscribe<OnPlayerStopSlidingEvent>(OnStopSliding);
+        EventBus.Subscribe<OnPlayerStateChangedEvent>(OnPlayerStateChanged); // NUEVO
 
         EventBus.Subscribe<onDialogueOpen>(open => ableToMove = false);
         EventBus.Subscribe<onDialogueClose>(open => ableToMove = true);
@@ -171,6 +184,7 @@ public class PlayerController : MonoBehaviour
         EventBus.Unsubscribe<OnRotatePlayerCommand>(OnRotatePlayer);
         EventBus.Unsubscribe<OnPlayerSlideStateEvent>(OnSlideState);
         EventBus.Unsubscribe<OnPlayerStopSlidingEvent>(OnStopSliding);
+        EventBus.Unsubscribe<OnPlayerStateChangedEvent>(OnPlayerStateChanged); // NUEVO
         
         EventBus.Unsubscribe<onDialogueOpen>(open => ableToMove = false);
         EventBus.Unsubscribe<onDialogueClose>(open => ableToMove = true);
@@ -196,6 +210,27 @@ public class PlayerController : MonoBehaviour
         slideSpeedGain = 0f;
         slideMomentumDecay = 0f;
         slideMaxSpeed = 15f;
+    }
+    
+    private void OnPlayerStateChanged(OnPlayerStateChangedEvent ev)
+    {
+        // Detectar cuando entra en estado Landing (aterrizaje normal)
+        if (enableLandingLag && ev.CurrentState == PlayerState.Landing)
+        {
+            // Solo aplicar landing lag si el jugador tenía suficiente velocidad
+            if (currentSpeed >= landingLagMinSpeed)
+            {
+                isInLandingLag = true;
+                landingLagEndTime = Time.time + landingLagDuration;
+            }
+        }
+        
+        // Cancelar landing lag si sale del estado Landing
+        if (ev.PreviousState == PlayerState.Landing && ev.CurrentState != PlayerState.Landing)
+        {
+            isInLandingLag = false;
+            landingLagEndTime = -1f;
+        }
     }
 
     private void OnRotatePlayer(OnRotatePlayerCommand cmd)
@@ -614,6 +649,24 @@ public class PlayerController : MonoBehaviour
     private void SpeedController()
     {
         float moveDirectionMultiplier = Mathf.Clamp(inputDirection.magnitude, 0.1f, 1f);
+        
+        // === LANDING LAG: Reducir velocidad durante aterrizaje ===
+        if (isInLandingLag)
+        {
+            // Verificar si el landing lag ha terminado
+            if (Time.time >= landingLagEndTime)
+            {
+                isInLandingLag = false;
+                landingLagEndTime = -1f;
+            }
+            else
+            {
+                // Aplicar reducción de velocidad durante landing lag
+                float targetSpeed = currentSpeed * landingLagSpeedMultiplier;
+                currentSpeed = Mathf.Lerp(currentSpeed, targetSpeed, Time.deltaTime * 15f); // Transición suave
+                return; // No aplicar control de velocidad normal
+            }
+        }
         
         // Sliding speed is handled separately
         if (isSliding)

@@ -850,7 +850,7 @@ MonoBehaviour:
   apexThreshold: 1
   maxVerticalVelocity: 20
   landingStateDuration: 0.2
-  hardLandingStateDuration: 0.5
+  hardLandingStateDuration: 0.25
   groundPoundLandDuration: 0.6
   hardLandingFallThreshold: 5
   currentState: 0
@@ -2035,9 +2035,25 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: 424aa1caf99731e48838d40b19fed0de, type: 2}
+    - target: {fileID: 6133790336820374952, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -0.35781097
+      objectReference: {fileID: 0}
+    - target: {fileID: 6133790336820374952, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -0.40000534
+      objectReference: {fileID: 0}
     - target: {fileID: 6197389769984527615, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
       propertyPath: m_OcclusionCulling
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6252386536116521578, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8084566920752572631, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -0.35781097
       objectReference: {fileID: 0}
     - target: {fileID: 8200244226595701471, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
       propertyPath: m_Dithering
@@ -2062,6 +2078,10 @@ PrefabInstance:
     - target: {fileID: 8854284946421791992, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
       propertyPath: m_Name
       value: PlayableCharacter
+      objectReference: {fileID: 0}
+    - target: {fileID: 9078164336399882553, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 2.4750977
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 4211114022115682958, guid: bc7550dec8e5c0e42bb204178f6f0cd3, type: 3}

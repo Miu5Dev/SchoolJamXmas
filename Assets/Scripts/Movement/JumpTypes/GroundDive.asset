@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: GroundDive
   m_EditorClassIdentifier: 
   jumpType: 8
-  jumpForce: 0.5
+  jumpForce: 0.8
   extraSpeed: 10
   hangTime: 0
   condition: 0

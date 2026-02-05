@@ -240,6 +240,21 @@ public class PlayerStateController : MonoBehaviour
         isSkidding = false;
         lastEventReceived = $"OnExecuteJumpCommand ({cmd.JumpType.jumpType})";
         
+        // CRÍTICO: Cancelar landing state cuando se ejecuta un salto
+        // Esto previene que DetermineState() sobreescriba el estado de salto con Running/Walking
+        if (IsInLandingState())
+        {
+            landingEndTime = -1f; // Cancelar protección de landing
+        }
+        
+        // NUEVO: Verificar si debemos mantener la animación de triple jump
+        if (cmd.KeepTripleJumpAnimation && cmd.JumpType.jumpType == JumpType.Normal)
+        {
+            // Ejecutar normal jump con animación de triple jump
+            SetState(PlayerState.TripleJumping);
+            return;
+        }
+        
         switch (cmd.JumpType.jumpType)
         {
             case JumpType.Normal: SetState(PlayerState.Jumping); break;
@@ -410,6 +425,13 @@ public class PlayerStateController : MonoBehaviour
             return;
         }
         
+        // NUEVO: Proteger estados de salto recién establecidos
+        // Si acabamos de entrar en un estado de salto (menos de 0.1s), no lo sobreescribir
+        if (IsInAnyJumpState() && GetTimeInCurrentState() < 0.1f)
+        {
+            return;
+        }
+        
         // Diving in air is protected until landing
         if (isDiving && !isGrounded) return;
         
@@ -467,11 +489,20 @@ public class PlayerStateController : MonoBehaviour
             // Don't override special air states with Falling
             if (IsInSpecialJumpState()) return;
             
-            // Only transition to Falling from regular jump states when significantly falling
+            // CORREGIDO: Protección mejorada para saltos del combo
             if (IsInNormalJumpState())
             {
-                // Need to be clearly falling (not just at apex) - threshold of -3
-                if (verticalVelocity < -40f)
+                // Proteger el estado de salto hasta que esté REALMENTE cayendo
+                // Criterios para transicionar a Falling:
+                // 1. Velocidad vertical significativamente negativa (cayendo rápido)
+                // 2. Ha pasado suficiente tiempo desde el inicio del estado (no interrumpir animación temprano)
+                
+                float timeInJumpState = Time.time - stateEnterTime;
+                bool fallingLongEnough = verticalVelocity < -8f;  // Threshold más razonable
+                bool enoughTimeInState = timeInJumpState > 0.3f;  // Dar tiempo a la animación
+                
+                // Solo transicionar si está cayendo Y ha pasado tiempo suficiente
+                if (fallingLongEnough && enoughTimeInState)
                 {
                     SetState(PlayerState.Falling);
                 }

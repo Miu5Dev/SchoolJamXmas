@@ -15,7 +15,7 @@ public class JumpController : MonoBehaviour
 
     [Header("Config")] 
     public float delayBetweenJumps = 0.2f;
-    public float jumpChainWindow = 0.4f;
+    public float jumpChainWindow = 0.6f; // Aumentado a 0.6s para testing más fácil
     public float longjumpSpeedThreshold = 0.5f;
     public float comboSpeedThreshold = 0.3f;
     public float groundDiveSpeedThreshold = 0.3f;
@@ -68,6 +68,10 @@ public class JumpController : MonoBehaviour
     [SerializeField] private bool backflipConsumed = false;
     [SerializeField] private bool ableToMove = false;
     
+    // Skid state tracking
+    [SerializeField] private bool isSkidding = false;
+    [SerializeField] private Vector3 skidDirection = Vector3.zero;
+    
     void OnEnable()
     {
         EventBus.Subscribe<OnPlayerGroundedEvent>(OnGrounded);
@@ -79,6 +83,7 @@ public class JumpController : MonoBehaviour
         EventBus.Subscribe<OnPlayerMoveEvent>(OnPlayerMove);
         EventBus.Subscribe<OnPlayerLandEvent>(OnPlayerLand);
         EventBus.Subscribe<OnDirectionChangeEvent>(OnDirectionChange);
+        EventBus.Subscribe<OnPlayerSkidEvent>(OnSkid);
         
         EventBus.Subscribe<onDialogueOpen>(open => ableToMove = false);
         EventBus.Subscribe<onDialogueClose>(open => ableToMove = true);
@@ -95,6 +100,7 @@ public class JumpController : MonoBehaviour
         EventBus.Unsubscribe<OnPlayerMoveEvent>(OnPlayerMove);
         EventBus.Unsubscribe<OnPlayerLandEvent>(OnPlayerLand);
         EventBus.Unsubscribe<OnDirectionChangeEvent>(OnDirectionChange);
+        EventBus.Unsubscribe<OnPlayerSkidEvent>(OnSkid);
         
         EventBus.Unsubscribe<onDialogueOpen>(open => ableToMove = false);
         EventBus.Unsubscribe<onDialogueClose>(open => ableToMove = true);
@@ -229,6 +235,18 @@ public class JumpController : MonoBehaviour
         }
     }
     
+    private void OnSkid(OnPlayerSkidEvent ev)
+    {
+        isSkidding = ev.IsSkidding;
+        skidDirection = ev.SkidDirection;
+        
+        // Reset backflip consumed cuando empieza un nuevo skid
+        if (isSkidding)
+        {
+            backflipConsumed = false;
+        }
+    }
+    
     void Update()
     {
         if(!ableToMove)return;
@@ -239,10 +257,8 @@ public class JumpController : MonoBehaviour
         HandleGroundDive();
         HandleJumpLogic();
         
-        if (grounded && Time.time > lastGroundedTime + jumpChainWindow)
-        {
-            currentJumpInChain = 0;
-        }
+        // La lógica de reset del combo ahora está completamente dentro de HandleJumpLogic()
+        // No necesitamos verificación adicional aquí
         
         if (completedGroundPound && Time.time > groundPoundCompleteTime + groundPoundJumpWindow)
         {
@@ -362,7 +378,7 @@ public class JumpController : MonoBehaviour
         if(!ableToMove) return;
         
         // NUEVO: Verificar que no esté consumido
-        if (isAction && !actionConsumed && grounded && !isDiving && groundDive != null && Time.time > lastDiveTime + delayBetweenJumps)
+        if (isAction && !actionConsumed && grounded && !isDiving && groundDive != null && Time.time > lastDiveTime + delayBetweenJumps && !isCrouching)
         {
             if (currentSpeed >= groundDiveSpeedThreshold)
             {
@@ -417,48 +433,80 @@ public class JumpController : MonoBehaviour
                 jumpToExecute = normalJump;
             }
         }
-        else if (grounded && backflip != null && !backflipConsumed)
+        // NUEVO: Backflip durante skid (más intuitivo que detección de cambio de dirección)
+        else if (grounded && isSkidding && backflip != null && !backflipConsumed)
         {
-            if (IsInputOppositeToPlayerDirection())
-            {
-                jumpToExecute = backflip;
-                currentJumpInChain = 0;
-                recentSharpTurn = false;
-                backflipConsumed = true;
-            }
+            // Durante skid, presionar Jump ejecuta backflip
+            Debug.Log("[Backflip] Ejecutando backflip desde SKID");
+            jumpToExecute = backflip;
+            currentJumpInChain = 0;
+            backflipConsumed = true;
         }
         
         if (jumpToExecute == null && grounded)
         {
-            bool isInComboWindow = Time.time < lastGroundedTime + jumpChainWindow;
-            bool hasEnoughSpeed = currentSpeed >= comboSpeedThreshold;
+            // === NUEVA LÓGICA DE COMBO ROBUSTA ===
             
-            if (!isInComboWindow || !hasEnoughSpeed)
+            float timeSinceLastLanding = Time.time - lastGroundedTime;
+            bool hasEnoughSpeed = currentSpeed >= comboSpeedThreshold;
+            bool landedRecently = timeSinceLastLanding < jumpChainWindow;
+            
+            // DEBUG: Log para diagnosticar
+            Debug.Log($"[JumpCombo] === INICIO DE VERIFICACIÓN ===");
+            Debug.Log($"[JumpCombo] currentJumpInChain: {currentJumpInChain}");
+            Debug.Log($"[JumpCombo] timeSinceLastLanding: {timeSinceLastLanding:F3}s");
+            Debug.Log($"[JumpCombo] landedRecently: {landedRecently} (< {jumpChainWindow}s)");
+            Debug.Log($"[JumpCombo] hasEnoughSpeed: {hasEnoughSpeed} (speed: {currentSpeed:F2} >= {comboSpeedThreshold})");
+            
+            // IMPORTANTE: El primer salto (counter = 0) NO requiere ventana de tiempo
+            // Solo los saltos del combo (counter > 0) requieren que hayas aterrizado recientemente
+            if (currentJumpInChain > 0)
             {
-                currentJumpInChain = 0;
+                // En combo activo: verificar ventana y velocidad
+                if (!landedRecently || !hasEnoughSpeed)
+                {
+                    Debug.LogWarning($"[JumpCombo] RESETEANDO contador! Razón: {(!landedRecently ? $"Tiempo desde landing ({timeSinceLastLanding:F2}s) > ventana ({jumpChainWindow}s)" : $"Velocidad ({currentSpeed:F2}) < threshold ({comboSpeedThreshold})")}");
+                    currentJumpInChain = 0;
+                }
+            }
+            else
+            {
+                // Primer salto: NO verificar ventana, solo velocidad para determinar si inicia combo
+                Debug.Log($"[JumpCombo] Primer salto - no verificar ventana de tiempo");
             }
             
+            Debug.Log($"[JumpCombo] Contador después de verificación: {currentJumpInChain}");
+            
+            // Determinar qué salto ejecutar basado en el contador
             switch (currentJumpInChain)
             {
                 case 0:
                     jumpToExecute = normalJump;
+                    Debug.Log($"[JumpCombo] ✓ Ejecutando: NORMAL JUMP (1er salto)");
                     break;
                 case 1:
                     jumpToExecute = doubleJump;
+                    Debug.Log($"[JumpCombo] ✓ Ejecutando: DOUBLE JUMP (2do salto)");
                     break;
                 case 2:
                     jumpToExecute = tripleJump;
+                    Debug.Log($"[JumpCombo] ✓ Ejecutando: TRIPLE JUMP (3er salto)");
                     break;
+                case 3:
                 default:
+                    // Después del 3er salto, seguir con normal jump pero animación de triple
                     jumpToExecute = normalJump;
-                    currentJumpInChain = -1;
+                    Debug.Log($"[JumpCombo] ✓ Ejecutando: NORMAL JUMP (post-triple, salto #{currentJumpInChain + 1})");
                     break;
             }
         }
         
         if (jumpToExecute != null)
         {
-            if (RequestJump(jumpToExecute))
+            // NUEVO: Determinar si debemos mantener la animación de triple jump
+            bool shouldKeepTripleJumpAnimation = (currentJumpInChain >= 3);
+            
+            if (RequestJump(jumpToExecute, shouldKeepTripleJumpAnimation))
             {
                 lastJumpTime = Time.time;
                 jumpConsumed = true; // NUEVO: Consumir input
@@ -467,13 +515,14 @@ public class JumpController : MonoBehaviour
                 {
                     if (currentSpeed >= comboSpeedThreshold)
                     {
+                        Debug.Log($"[JumpCombo] INCREMENTANDO contador de {currentJumpInChain} a {currentJumpInChain + 1}");
+                        // CORREGIDO: Incrementar DESPUÉS de ejecutar, pero sin resetear a 0
+                        // Esto permite que el contador siga creciendo después del 3er salto
                         currentJumpInChain++;
-                        
-                        if (currentJumpInChain > 2)
-                            currentJumpInChain = 0;
                     }
                     else
                     {
+                        Debug.LogWarning($"[JumpCombo] Velocidad insuficiente para combo, reseteando contador");
                         currentJumpInChain = 0;
                     }
                 }
@@ -493,7 +542,7 @@ public class JumpController : MonoBehaviour
         return false;
     }
     
-    private bool RequestJump(JumpTypeCreator jumpType)
+    private bool RequestJump(JumpTypeCreator jumpType, bool keepTripleJumpAnimation = false)
     {
         if (jumpType == null) return false;
         
@@ -535,7 +584,8 @@ public class JumpController : MonoBehaviour
             EventBus.Raise<OnExecuteJumpCommand>(new OnExecuteJumpCommand()
             {
                 Player = gameObject,
-                JumpType = jumpType
+                JumpType = jumpType,
+                KeepTripleJumpAnimation = keepTripleJumpAnimation
             });
         }
         else
@@ -543,7 +593,8 @@ public class JumpController : MonoBehaviour
             EventBus.Raise<OnExecuteJumpCommand>(new OnExecuteJumpCommand()
             {
                 Player = gameObject,
-                JumpType = jumpType
+                JumpType = jumpType,
+                KeepTripleJumpAnimation = keepTripleJumpAnimation
             });
         }
         

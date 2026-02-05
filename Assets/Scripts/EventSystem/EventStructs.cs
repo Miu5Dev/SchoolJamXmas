@@ -87,6 +87,7 @@ public class OnPlayerLandEvent : PlayerEventBase
 public class OnExecuteJumpCommand : PlayerEventBase
 {
     public JumpTypeCreator JumpType;
+    public bool KeepTripleJumpAnimation;  // NUEVO
 }
 
 public class OnApplyJumpForceCommand : PlayerEventBase
